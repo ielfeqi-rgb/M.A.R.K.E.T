@@ -325,11 +325,15 @@ class Plugin(BasePlugin):
     def on_purchase_detected(self, user_id: str, product_code: str, details: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         # Triggered when purchase / order is detected
         return None
+
+    def get_ui_snippet(self) -> Optional[str]:
+        # Optional: Return HTML/CSS snippet to render custom visual icons or elements in the dashboard UI
+        return None
 ```
 
 [IMPORTANT INSTRUCTIONS]
 1. Write 100% syntactically valid Python 3 code.
-2. If the user request is related to UI elements, custom icons, message formatting, or custom business logic, implement a complete Python Plugin class that logs or returns structured metadata / HTML / CSS snippets matching the user request.
+2. If the user request is related to UI elements, visual badges, or custom icons, implement `get_ui_snippet(self)` returning valid HTML/CSS strings so it renders dynamically in the dashboard.
 3. OUTPUT ONLY THE EXECUTABLE PYTHON CODE inside a single markdown code block (` ```python ... ``` `). Do NOT include conversational text outside the code block.
 """
 

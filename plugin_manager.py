@@ -34,6 +34,10 @@ class BasePlugin:
         """Hook called when a purchase intent or order is confirmed."""
         return None
 
+    def get_ui_snippet(self) -> Optional[str]:
+        """Optional hook to inject HTML/CSS snippet into the frontend dashboard."""
+        return None
+
 
 class PluginManager:
     """
@@ -48,34 +52,33 @@ class PluginManager:
         """Dynamically load all python plugin modules from plugins/ directory."""
         self.plugins.clear()
         
-        # Ensure plugins directory has an __init__.py if needed
-        init_file = PLUGINS_DIR / "__init__.py"
-        if not init_file.exists():
-            init_file.write_text("# M.A.R.K.E.T Plugins Package\n")
-
         for file in PLUGINS_DIR.glob("*.py"):
-            if file.name.startswith("_"):
+            if file.name.startswith("__"):
                 continue
-            
-            plugin_name = file.stem
+
+            plugin_id = file.stem
             try:
-                spec = importlib.util.spec_from_file_location(f"plugins.{plugin_name}", file)
+                spec = importlib.util.spec_from_file_location(plugin_id, file)
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
+                    sys.modules[plugin_id] = module
                     spec.loader.exec_module(module)
 
-                    # Look for Plugin class in module
-                    plugin_class = getattr(module, "Plugin", None)
-                    if plugin_class and issubclass(plugin_class, BasePlugin):
-                        instance: BasePlugin = plugin_class()
-                        pid = instance.plugin_id or plugin_name
-                        # Check saved state
-                        is_enabled = self.plugin_states.get(pid, getattr(instance, "enabled", True))
-                        instance.enabled = is_enabled
-                        self.plugins[pid] = instance
-                        logger.info(f"[PluginManager] Loaded plugin: '{instance.name}' (ID: {pid}, Enabled: {instance.enabled})")
+                    # Look for Plugin class
+                    if hasattr(module, "Plugin") and issubclass(module.Plugin, BasePlugin):
+                        instance = module.Plugin()
+                        instance.plugin_id = plugin_id
+                        
+                        # Preserve toggle state
+                        if plugin_id in self.plugin_states:
+                            instance.enabled = self.plugin_states[plugin_id]
+                        else:
+                            self.plugin_states[plugin_id] = instance.enabled
+
+                        self.plugins[plugin_id] = instance
+                        logger.info(f"[PluginManager] Loaded plugin: '{instance.name}' (ID: {plugin_id}, Enabled: {instance.enabled})")
             except Exception as e:
-                logger.error(f"[PluginManager Error] Failed to load plugin '{file.name}': {e}\n{traceback.format_exc()}")
+                logger.error(f"[PluginManager] Failed to load plugin '{file.name}': {e}\n{traceback.format_exc()}")
 
     def set_plugin_state(self, plugin_id: str, enabled: bool):
         """Enable or disable a plugin by ID."""
@@ -88,6 +91,13 @@ class PluginManager:
         """Return structured list of all installed plugins."""
         result = []
         for pid, p in self.plugins.items():
+            ui_snip = None
+            if hasattr(p, "get_ui_snippet"):
+                try:
+                    ui_snip = p.get_ui_snippet()
+                except Exception:
+                    pass
+
             result.append({
                 "plugin_id": pid,
                 "id": pid,
@@ -97,7 +107,8 @@ class PluginManager:
                 "author": p.author,
                 "enabled": p.enabled,
                 "file_name": f"{pid}.py",
-                "filename": f"{pid}.py"
+                "filename": f"{pid}.py",
+                "ui_snippet": ui_snip
             })
         return result
 

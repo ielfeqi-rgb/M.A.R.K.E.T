@@ -1000,10 +1000,18 @@ async function loadPlugins() {
     try {
         const res = await fetch("/api/plugins");
         const data = await res.json();
-        list.innerHTML = "";
+        const uiContainer = document.getElementById("dynamicPluginsUiContainer");
+        if (uiContainer) uiContainer.innerHTML = "";
 
         if (data.plugins && data.plugins.length > 0) {
             data.plugins.forEach(p => {
+                if (p.enabled && p.ui_snippet && uiContainer) {
+                    const uiWrapper = document.createElement("div");
+                    uiWrapper.className = `plugin-ui-item plugin-ui-${p.plugin_id || p.id}`;
+                    uiWrapper.innerHTML = p.ui_snippet;
+                    uiContainer.appendChild(uiWrapper);
+                }
+
                 const item = document.createElement("div");
                 item.className = "plugin-card-item card glass-card mb-3 p-3";
                 const pluginId = p.plugin_id || p.id || "unknown";
