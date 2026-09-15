@@ -374,8 +374,13 @@ class Plugin(BasePlugin):
 '''
 
         # Generate safe plugin filename
-        import re
-        safe_id = re.sub(r'[^a-zA-Z0-9_]', '', user_prompt.lower().replace(" ", "_"))[:20] or "custom_ai_plugin"
+        import re, time
+        clean_prompt_words = re.sub(r'[^a-zA-Z0-9_]', '', user_prompt.lower().replace(" ", "_"))
+        if not clean_prompt_words or clean_prompt_words.strip("_") == "":
+            safe_id = f"custom_plugin_{int(time.time())}"
+        else:
+            safe_id = clean_prompt_words[:20].strip("_") or f"custom_plugin_{int(time.time())}"
+
         filename = f"ai_{safe_id}.py"
         plugins_folder = os.path.join(os.path.dirname(__file__), "plugins")
         os.makedirs(plugins_folder, exist_ok=True)
@@ -391,6 +396,7 @@ class Plugin(BasePlugin):
         return {
             "status": "success",
             "file_name": filename,
+            "filename": filename,
             "message": f"تم توليد كود الإضافة وحفظها في plugins/{filename} بنجاح! 🎉",
             "plugins": plugin_manager.list_plugins()
         }

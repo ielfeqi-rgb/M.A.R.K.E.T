@@ -1006,17 +1006,19 @@ async function loadPlugins() {
             data.plugins.forEach(p => {
                 const item = document.createElement("div");
                 item.className = "plugin-card-item card glass-card mb-3 p-3";
+                const pluginId = p.plugin_id || p.id || "unknown";
+                const fileName = p.file_name || p.filename || `${pluginId}.py`;
                 const hooksList = (p.hooks || []).map(h => `<span class="code-badge">${h}</span>`).join(" ");
                 const statusBadge = p.enabled ? '<span class="badge badge-success">مفعل</span>' : '<span class="badge badge-secondary">معطل</span>';
                 
                 item.innerHTML = `
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
-                            <h4 class="m-0">${p.name || p.id} ${statusBadge}</h4>
-                            <small class="text-muted">المؤلف: ${p.author || 'غير معروف'} | الإصدار: ${p.version || '1.0'}</small>
+                            <h4 class="m-0">${p.name || pluginId} ${statusBadge}</h4>
+                            <small class="text-muted">المؤلف: ${p.author || 'غير معروف'} | الإصدار: ${p.version || '1.0'} | الملف: <code>${fileName}</code></small>
                         </div>
                         <div>
-                            <button class="btn btn-sm ${p.enabled ? 'btn-danger' : 'btn-success'}" onclick="togglePluginState('${p.id}', ${!p.enabled})">
+                            <button class="btn btn-sm ${p.enabled ? 'btn-danger' : 'btn-success'}" onclick="togglePluginState('${pluginId}', ${!p.enabled})">
                                 ${p.enabled ? 'إيقاف' : 'تفعيل'}
                             </button>
                         </div>
@@ -1080,11 +1082,12 @@ async function generateAiPlugin() {
         const data = await res.json();
 
         if (res.ok && data.status === "success") {
+            const fileName = data.file_name || data.filename || 'plugin.py';
             if (statusDiv) {
                 statusDiv.innerHTML = `
                     <div class="alert alert-success">
                         <strong>🎉 ${data.message}</strong><br>
-                        <small>تم حفظ الملف: <code>plugins/${data.filename}</code></small>
+                        <small>تم حفظ الملف: <code>plugins/${fileName}</code></small>
                     </div>
                 `;
             }

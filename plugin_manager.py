@@ -90,12 +90,14 @@ class PluginManager:
         for pid, p in self.plugins.items():
             result.append({
                 "plugin_id": pid,
+                "id": pid,
                 "name": p.name,
                 "description": p.description,
                 "version": p.version,
                 "author": p.author,
                 "enabled": p.enabled,
-                "file_name": f"{pid}.py"
+                "file_name": f"{pid}.py",
+                "filename": f"{pid}.py"
             })
         return result
 
