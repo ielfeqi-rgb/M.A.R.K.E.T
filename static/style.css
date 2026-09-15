@@ -1169,3 +1169,43 @@ html[data-theme="light"] .moon-icon { display: none; }
     .main-content { padding: 16px; }
     .quick-server-actions { display: none; }
 }
+
+/* Cute AI Badge Icon */
+.cute-ai-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(236, 72, 153, 0.25));
+    border: 1.5px solid rgba(168, 85, 247, 0.5);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 1.3rem;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+    animation: cutePulse 2.5s infinite ease-in-out;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    margin-left: 10px;
+}
+.cute-ai-badge:hover {
+    transform: scale(1.2) rotate(12deg);
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.7);
+}
+.cute-sparkle {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    font-size: 0.8rem;
+    animation: sparkleSpin 3s infinite linear;
+}
+@keyframes cutePulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); transform: scale(1); }
+    50% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.75); transform: scale(1.08); }
+}
+@keyframes sparkleSpin {
+    0% { transform: rotate(0deg) scale(0.9); }
+    50% { transform: rotate(180deg) scale(1.2); }
+    100% { transform: rotate(360deg) scale(0.9); }
+}
+
