@@ -174,13 +174,23 @@ class AIProviderManager:
         # 1. User's selected provider comes FIRST!
         chain.append(selected_provider)
 
-        # 2. Auto-detect if llama-server is running locally on port 8081
+        # 2. Auto-detect & auto-start llama-server locally on port 8081 if stopped
         try:
             from llamacpp_manager import llama_manager
             llama_status = llama_manager.get_status()
+            if not llama_status.get("running"):
+                avail = llama_status.get("available_gguf_models", [])
+                if avail:
+                    first_model = avail[0]["filename"]
+                    logger.info(f"[AI Chain] Auto-starting local llama-server for model: {first_model}")
+                    llama_manager.start(first_model, threads=4, context_size=2048, port=8081)
+                    await asyncio.sleep(2.5)
+                    llama_status = llama_manager.get_status()
+
             if llama_status.get("running") and "llamacpp" not in chain:
                 chain.append("llamacpp")
-        except Exception:
+        except Exception as e:
+            logger.debug(f"[AI Chain] Local llama-server auto-start check: {e}")
             llama_status = {}
 
         # 3. Add remaining configured providers
