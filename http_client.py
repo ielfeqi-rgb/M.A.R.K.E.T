@@ -29,7 +29,7 @@ class AsyncHTTPClient:
 
     async def _init_clients(self):
         limits = httpx.Limits(max_keepalive_connections=20, max_connections=50)
-        timeout = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=5.0)
+        timeout = httpx.Timeout(connect=10.0, read=120.0, write=20.0, pool=10.0)
 
         self._ollama_client = httpx.AsyncClient(
             base_url=settings.ollama_url.rstrip("/"),

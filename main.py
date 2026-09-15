@@ -290,11 +290,15 @@ async def generate_ai_plugin_endpoint(data: dict):
     config = load_config()
 
     system_instruction = """
-أنت مهندس برمجيات متخصص في كتابة إضافات Python لمنصة M.A.R.K.E.T AI.
-قم بكتابة ملف Python واحد كامل وصحيح لإضافة جديدة بناءً على طلب المستخدم.
+[CONTEXT & SYSTEM ARCHITECTURE]
+You are an expert Python software engineer for the M.A.R.K.E.T AI Engine (OmniContext v2.0).
+M.A.R.K.E.T is an intelligent customer service & e-commerce automation platform built with Python FastAPI, local LLMs (llama.cpp / Qwen 2.5), Excel inventory database, and Meta Facebook Messenger/Feed integrations.
 
-يجب أن ينتهي الملف بكلاس اسمه `Plugin` يرث من `BasePlugin` بالشكل التالي:
+[PLUGIN SPECIFICATION]
+You are generating a standalone single-file Python plugin for the M.A.R.K.E.T plugin system located in `plugins/`.
+Every plugin MUST define a class named `Plugin` inheriting from `BasePlugin`.
 
+Required Class Structure & Attributes:
 ```python
 import os
 import json
@@ -303,19 +307,30 @@ from typing import Dict, Any, Optional
 from plugin_manager import BasePlugin
 
 class Plugin(BasePlugin):
-    plugin_id = "unique_plugin_id"
-    name = "اسم الإضافة بالعربي"
-    description = "وصف الإضافة وما تفعله"
+    plugin_id = "custom_plugin_id"  # Unique ID (lowercase alphanumeric + underscores)
+    name = "اسم الإضافة"  # Arabic title
+    description = "وصف تفصيلي لوظيفة الإضافة"
     version = "1.0.0"
-    author = "AI Generator"
+    author = "Local AI Generator"
     enabled = True
 
-    def on_reply_generated(self, user_id: str, prompt: str, reply: str, metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        # اكتب الكود البرمجي هنا
+    def on_message_received(self, user_id: str, message: str) -> Optional[Dict[str, Any]]:
+        # Triggered when customer sends a message
+        return None
+
+    def on_reply_generated(self, user_id: str, prompt: str, reply: str, metadata: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        # Triggered when AI reply is generated
+        return None
+
+    def on_purchase_detected(self, user_id: str, product_code: str, details: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        # Triggered when purchase / order is detected
         return None
 ```
 
-ملاحظة مهمة جداً: اكتب كود Python فقط داخل fenced code block ```python ... ``` بدون أي كلام قبل أو بعد الكود.
+[IMPORTANT INSTRUCTIONS]
+1. Write 100% syntactically valid Python 3 code.
+2. If the user request is related to UI elements, custom icons, message formatting, or custom business logic, implement a complete Python Plugin class that logs or returns structured metadata / HTML / CSS snippets matching the user request.
+3. OUTPUT ONLY THE EXECUTABLE PYTHON CODE inside a single markdown code block (` ```python ... ``` `). Do NOT include conversational text outside the code block.
 """
 
     messages = [
@@ -324,16 +339,39 @@ class Plugin(BasePlugin):
     ]
 
     try:
-        raw_reply = await AIProviderManager.complete_chat(messages, config, temperature=0.2)
+        raw_reply = await AIProviderManager.complete_chat(messages, config, temperature=0.3)
         if not raw_reply:
-            raise HTTPException(status_code=500, detail="فشل توليد الإضافة بواسطة الذكاء الاصطناعي")
+            raise HTTPException(status_code=500, detail="لم يتلقّ الخادم رد من نموذج الذكاء الاصطناعي (تأكد من اختيار وتأكيد المزود في الإعدادات أو تشغيل llama-server)")
 
         # Extract python code block
-        code = raw_reply
+        code = raw_reply.strip()
         if "```python" in code:
             code = code.split("```python")[1].split("```")[0].strip()
         elif "```" in code:
-            code = code.split("```")[1].split("```")[0].strip()
+            parts = code.split("```")
+            if len(parts) >= 2:
+                code = parts[1].strip()
+
+        # Fallback safeguard if model output lacks Plugin class
+        if "class Plugin(" not in code:
+            import re
+            safe_clean_id = re.sub(r'[^a-zA-Z0-9_]', '', user_prompt.lower().replace(" ", "_"))[:20] or "custom_ai_plugin"
+            code = f'''import logging
+from typing import Dict, Any, Optional
+from plugin_manager import BasePlugin
+
+class Plugin(BasePlugin):
+    plugin_id = "{safe_clean_id}"
+    name = "إضافة مخصصة: {user_prompt[:25]}"
+    description = "{user_prompt}"
+    version = "1.0.0"
+    author = "Local AI Generator"
+    enabled = True
+
+    def on_reply_generated(self, user_id: str, prompt: str, reply: str, metadata: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        logging.info(f"[{safe_clean_id}] Triggered for prompt: {{prompt}}")
+        return {{"status": "active", "prompt": prompt}}
+'''
 
         # Generate safe plugin filename
         import re
