@@ -1,0 +1,18 @@
+[package]
+name = "market-ai"
+version = "1.0.0"
+edition = "2021"
+description = "M.A.R.K.E.T. - Modular AI Runtime & Knowledge Extension Toolkit for Enterprise Linux Deployments"
+authors = ["M.A.R.K.E.T. AI Core Team"]
+
+[dependencies]
+tokio = { version = "1.38", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+axum = { version = "0.7", features = ["macros"] }
+tower-http = { version = "0.5", features = ["cors"] }
+clap = { version = "4.5", features = ["derive"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+mlua = { version = "0.9", features = ["lua54", "vendored", "serialize"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"

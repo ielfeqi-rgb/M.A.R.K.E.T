@@ -1,0 +1,14 @@
+{
+  "id": "whatsapp_openwa",
+  "name": "WhatsApp OpenWA Gateway Adapter",
+  "version": "1.0.0",
+  "plugin_type": "channel",
+  "description": "تكامل واتساب كامل عبر بوابة OpenWA مفتوحة المصدر - إرسال واستقبال رسائل وإدارة جلسات QR",
+  "entrypoint": "adapter.py",
+  "enabled": true,
+  "config_keys": [
+    "whatsapp_openwa_url",
+    "whatsapp_openwa_api_key",
+    "whatsapp_session_id"
+  ]
+}

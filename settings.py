@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     qr_max_image_size: int = 10 * 1024 * 1024
     qr_timeout: int = 15
 
+    # WhatsApp OpenWA Integration
+    whatsapp_openwa_url: str = "http://localhost:2785"
+    whatsapp_openwa_api_key: str = ""
+    whatsapp_session_id: str = "market-bot"
+    whatsapp_auto_reply: bool = True
+    whatsapp_send_purchase_confirmation: bool = True
+
     # Conversation History
     history_max_messages: int = 10
     history_ttl_seconds: int = 3600

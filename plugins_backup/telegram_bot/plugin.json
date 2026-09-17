@@ -1,0 +1,9 @@
+{
+  "id": "telegram_bot",
+  "name": "Telegram Bot Adapter",
+  "version": "1.0.0",
+  "plugin_type": "channel",
+  "description": "معالجة رسائل وتنبيهات بوت تلجرام وتنسيق MarkdownV2",
+  "entrypoint": "adapter.lua",
+  "enabled": true
+}

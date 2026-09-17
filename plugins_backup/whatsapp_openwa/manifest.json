@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "id": "whatsapp_openwa",
+  "name": "واتساب (OpenWA Gateway)",
+  "version": "3.0.0",
+  "description": "بوابة اتصال وتواصل كاملة عبر واتساب باستخدام OpenWA مع واجهة مخصصة ورمز QR وإرسال/استقبال تلقائي",
+  "author": "M.A.R.K.E.T AI Systems",
+  "icon": "message-circle",
+  "entrypoint": "backend.py",
+  "permissions": ["network", "ai", "webhooks", "ui"],
+  "enabled": true,
+
+  "ui": {
+    "tab": {
+      "id": "tab-whatsapp",
+      "title": "واتساب (WhatsApp)",
+      "icon": "message-circle",
+      "template": "ui/tab.html",
+      "order": 15
+    },
+    "settings_fields": [
+      {
+        "key": "whatsapp_openwa_url",
+        "label": "عنوان خادم OpenWA Gateway",
+        "type": "text",
+        "default": "http://localhost:2785",
+        "placeholder": "http://localhost:2785"
+      },
+      {
+        "key": "whatsapp_openwa_api_key",
+        "label": "مفتاح API الخاص بـ OpenWA (X-API-Key)",
+        "type": "password",
+        "default": "",
+        "placeholder": "اتركه فارغاً إذا لم يكن مفعلاً"
+      },
+      {
+        "key": "whatsapp_session_id",
+        "label": "معرّف الجلسة (Session ID)",
+        "type": "text",
+        "default": "market-bot",
+        "placeholder": "market-bot"
+      },
+      {
+        "key": "whatsapp_auto_reply",
+        "label": "الرد التلقائي الذكي على رسائل العملاء",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "whatsapp_send_purchase_confirmation",
+        "label": "إرسال رسالة تأكيد الشراء التلقائية عبر واتساب",
+        "type": "boolean",
+        "default": true
+      }
+    ],
+    "topbar_badges": [
+      {
+        "id": "wa_live_badge",
+        "endpoint": "/ext/whatsapp_openwa/status"
+      }
+    ]
+  },
+
+  "routes": {
+    "prefix": "/ext/whatsapp_openwa",
+    "webhooks": ["/webhook"]
+  }
+}

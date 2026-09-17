@@ -1,0 +1,9 @@
+{
+  "id": "instagram_dm",
+  "name": "Instagram Direct Messaging Adapter",
+  "version": "1.0.0",
+  "plugin_type": "channel",
+  "description": "استخراج رسائل إنستجرام الخاصة وتنسيق الرد لـ Meta Graph API",
+  "entrypoint": "adapter.lua",
+  "enabled": true
+}

@@ -161,12 +161,13 @@ class AIProviderManager:
     async def complete_chat(messages: List[Dict[str, str]], config: Dict[str, Any], temperature: float = 0.7) -> Optional[str]:
         """
         Unified chat completion with AUTOMATIC FALLBACK CHAIN (Priority Order):
-        1. Selected Provider (User choice tried FIRST)
-        2. Active llama-server process (if running on port 8081)
-        3. Configured Cloud & Local Providers (Gemini, Groq, Ollama, OpenAI, DeepSeek, Custom)
-        4. Returns None → caller handles rule-based fallback
+        1. Selected Provider (User choice tried FIRST, defaults to omni_engine / custom)
+        2. Configured Omni Engine / Custom Endpoint (local or remote host via custom_ai_url)
+        3. Active llama-server process (if running locally on port 8081)
+        4. Cloud & Local Providers (Gemini, Groq, Ollama, OpenAI, DeepSeek)
+        5. Returns None → caller handles rule-based fallback
         """
-        selected_provider = config.get("ai_provider", "gemini").lower()
+        selected_provider = config.get("ai_provider", "custom").lower()
 
         # Build priority chain
         chain: List[str] = []
@@ -174,7 +175,11 @@ class AIProviderManager:
         # 1. User's selected provider comes FIRST!
         chain.append(selected_provider)
 
-        # 2. Auto-detect & auto-start llama-server locally on port 8081 if stopped
+        # 2. If omni_engine / custom is configured (local or remote server), prioritize it
+        if config.get("custom_ai_url", "").strip() and "custom" not in chain:
+            chain.append("custom")
+
+        # 3. Auto-detect & auto-start llama-server locally on port 8081 if stopped
         try:
             from llamacpp_manager import llama_manager
             llama_status = llama_manager.get_status()
@@ -193,8 +198,8 @@ class AIProviderManager:
             logger.debug(f"[AI Chain] Local llama-server auto-start check: {e}")
             llama_status = {}
 
-        # 3. Add remaining configured providers
-        for p in ["gemini", "groq", "ollama", "custom", "openai", "deepseek"]:
+        # 4. Add remaining configured providers
+        for p in ["custom", "gemini", "groq", "ollama", "openai", "deepseek"]:
             if p not in chain:
                 chain.append(p)
 
@@ -243,6 +248,48 @@ class AIProviderManager:
     async def complete_text(prompt: str, config: Dict[str, Any], temperature: float = 0.0) -> Optional[str]:
         """Unified simple prompt completion entry point."""
         messages = [{"role": "user", "content": prompt}]
+        return await AIProviderManager.complete_chat(messages, config, temperature)
+
+    @staticmethod
+    async def complete_coder(messages: List[Dict[str, str]], config: Dict[str, Any], temperature: float = 0.2) -> Optional[str]:
+        """
+        Dedicated code generation engine for Qwen 2.5 Coder 0.5B (or specified coder model).
+        Completely isolated from the customer service / chat model.
+        Priority:
+        1. Ollama local instance running qwen2.5-coder:0.5b (or coder_model in config)
+        2. Local llama-server running coder GGUF
+        3. Fallback to AI provider chain if coder model isn't currently pulled/running locally
+        """
+        coder_model = config.get("coder_model", "qwen2.5-coder:0.5b")
+        coder_ollama_url = config.get("coder_ollama_url", config.get("ollama_url", "http://localhost:11434"))
+
+        # 1. Try custom local endpoint (llama-server on port 8081) first if configured
+        custom_url = config.get("custom_ai_url", "")
+        if custom_url:
+            try:
+                res = await AIProviderManager._chat_openai_compatible_provider(messages, config, "custom", temperature)
+                if res and res.strip():
+                    logger.info("[CoderEngine:Local] Code generated via local engine endpoint")
+                    return res.strip()
+            except Exception as e:
+                logger.debug(f"[CoderEngine:Local] Custom coder endpoint note: {e}")
+
+        # 2. Try dedicated Qwen Coder in Ollama
+        try:
+            res = await AIProviderManager._chat_ollama(
+                messages,
+                {"ollama_url": coder_ollama_url, "ollama_model": coder_model},
+                temperature
+            )
+            if res and res.strip():
+                logger.info(f"[CoderEngine:Qwen] Successfully generated extension code using '{coder_model}'")
+                return res.strip()
+        except Exception as e:
+            logger.debug(f"[CoderEngine:Qwen] Ollama coder attempt note: {e}")
+
+
+        # 3. Fallback to general AI completion chain
+        logger.info(f"[CoderEngine] Coder model '{coder_model}' offline. Falling back to primary AI provider for extension code generation.")
         return await AIProviderManager.complete_chat(messages, config, temperature)
 
     # ---------------- Ollama Implementation ----------------
@@ -365,7 +412,8 @@ class AIProviderManager:
         payload = {
             "model": model,
             "messages": messages,
-            "temperature": temperature
+            "temperature": temperature,
+            "stop": ["```\n\n", "User:", "<|im_end|>", "### Explanation", "### شرح"]
         }
 
         try:
@@ -385,12 +433,13 @@ class AIProviderManager:
     async def test_provider(config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Tests AI connectivity in priority order:
-        1. Ollama local (always first)
-        2. Selected cloud provider
-        3. Full fallback chain
+        1. Selected provider (or omni_engine / custom)
+        2. Ollama local
+        3. Cloud providers
+        4. Full fallback chain
         Returns detailed status for the dashboard.
         """
-        selected = config.get("ai_provider", "ollama")
+        selected = config.get("ai_provider", "custom")
         test_messages = [
             {"role": "system", "content": "أنت موظف خدمة عملاء ذكي لاختبار الاتصال."},
             {"role": "user", "content": "قل 'تم الاتصال بنجاح ومستعد لخدمة العملاء' فقط."}
@@ -398,22 +447,39 @@ class AIProviderManager:
 
         results: Dict[str, str] = {}
 
-        # ── Step 1: Always test Ollama first ─────────────────────────────────
-        try:
-            res = await AIProviderManager._chat_ollama(test_messages, config, 0.0)
-            if res:
-                results["ollama"] = "✅ متصل"
-                return {
-                    "status": "success",
-                    "response": res,
-                    "provider": "ollama",
-                    "provider_label": f"Ollama ({config.get('ollama_model', 'local')})",
-                    "all_results": results,
-                }
-            else:
-                results["ollama"] = "⚠️ غير متاح (الخادم المحلي لم يستجب)"
-        except Exception as e:
-            results["ollama"] = f"❌ خطأ: {str(e)[:60]}"
+        # ── Step 1: Test selected provider directly ──────────────────────────
+        if selected in ("custom", "omni_engine"):
+            try:
+                res = await AIProviderManager._chat_openai_compatible_provider(test_messages, config, "custom", 0.0)
+                if res:
+                    results["custom"] = "✅ متصل"
+                    return {
+                        "status": "success",
+                        "response": res,
+                        "provider": "custom",
+                        "provider_label": f"Omni Engine ({config.get('custom_ai_url', '')})",
+                        "all_results": results,
+                    }
+                else:
+                    results["custom"] = "⚠️ غير متاح (لم يستجب محرك Omni Engine)"
+            except Exception as e:
+                results["custom"] = f"❌ خطأ: {str(e)[:60]}"
+        elif selected == "ollama":
+            try:
+                res = await AIProviderManager._chat_ollama(test_messages, config, 0.0)
+                if res:
+                    results["ollama"] = "✅ متصل"
+                    return {
+                        "status": "success",
+                        "response": res,
+                        "provider": "ollama",
+                        "provider_label": f"Ollama ({config.get('ollama_model', 'local')})",
+                        "all_results": results,
+                    }
+                else:
+                    results["ollama"] = "⚠️ غير متاح (الخادم المحلي لم يستجب)"
+            except Exception as e:
+                results["ollama"] = f"❌ خطأ: {str(e)[:60]}"
 
         # ── Step 2: Try selected cloud provider ──────────────────────────────
         if selected != "ollama":

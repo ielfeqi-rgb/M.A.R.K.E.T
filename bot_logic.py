@@ -40,6 +40,12 @@ DEFAULT_CONFIG = {
     "comment_reply_mode": "both",  # "public", "private", "both"
     "ngrok_authtoken": "",
     "excel_path": "products.xlsx",
+    "whatsapp_enabled": False,
+    "whatsapp_openwa_url": "http://localhost:2785",
+    "whatsapp_openwa_api_key": "",
+    "whatsapp_session_id": "market-bot",
+    "whatsapp_auto_reply": True,
+    "whatsapp_send_purchase_confirmation": True,
     "system_prompt": (
         "أنت موظف خدمة عملاء مصري ودود ولطيف جداً في صفحة بيع ملابس. "
         "مهمتك هي الرد على استفسار العميل بالعامية المصرية الودية والمهذبة جداً. "
@@ -330,21 +336,55 @@ def lookup_product(code: str) -> Optional[ProductInfo]:
     return None
 
 
+async def send_whatsapp_message(chat_id: str, text_content: str, image_url: Optional[str] = None) -> bool:
+    """Sends a WhatsApp message via OpenWA Gateway adapter."""
+    config = load_config()
+    openwa_url = config.get("whatsapp_openwa_url", settings.whatsapp_openwa_url)
+    api_key = config.get("whatsapp_openwa_api_key", settings.whatsapp_openwa_api_key)
+    session_id = config.get("whatsapp_session_id", settings.whatsapp_session_id)
+
+    try:
+        from plugins.whatsapp_openwa.adapter import WhatsAppAdapter
+        adapter = WhatsAppAdapter(openwa_url=openwa_url, api_key=api_key, session_id=session_id)
+        res = await adapter.send_message(chat_id, text_content, image_url=image_url)
+        await adapter.shutdown()
+        return res.get("status") == "success"
+    except Exception as e:
+        logger.error(f"WhatsApp send error: {e}")
+        return False
+
+
 async def process_incoming_message(
     sender_id: str,
     message_text: str = "",
     image_url: Optional[str] = None,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    channel: str = "auto"
 ) -> str:
-    """Processes an incoming Messenger private message."""
+    """Processes an incoming customer message across all channels (Facebook, WhatsApp, etc.)."""
+    from plugin_manager import plugin_manager
+
     if message_id:
         if message_id in processed_messages_cache:
             logger.info(f"Message ID '{message_id}' already processed. Skipping duplicate.")
             return ""
         processed_messages_cache[message_id] = True
 
+    # Detect channel
+    if channel == "auto":
+        is_whatsapp = ("@c.us" in sender_id or "@g.us" in sender_id)
+        actual_channel = "whatsapp" if is_whatsapp else "facebook"
+    else:
+        actual_channel = channel
+
     user_input_display = message_text or "[صورة منتج]"
     update_history(sender_id, "user", user_input_display)
+
+    # 1. Trigger Plugin Hook: on_message_received
+    try:
+        plugin_manager.trigger_message_hook(sender_id, user_input_display)
+    except Exception as e:
+        logger.warning(f"Plugin message hook error: {e}")
 
     product_code = None
     product_info = None
@@ -372,7 +412,39 @@ async def process_incoming_message(
         logger.info("Product not found, generating fallback AI reply...")
         reply_text = await generate_ai_reply(sender_id, None, user_input_display)
 
-    await send_fb_message(sender_id, reply_text)
+    metadata = {
+        "channel": actual_channel,
+        "product_code": product_code,
+        "product_name": product_info.name if product_info else None,
+        "has_image": bool(image_url),
+    }
+
+    # 2. Trigger Plugin Hook: on_reply_generated
+    try:
+        plugin_manager.trigger_reply_hook(sender_id, user_input_display, reply_text, metadata)
+    except Exception as e:
+        logger.warning(f"Plugin reply hook error: {e}")
+
+    # 3. Trigger Plugin Hook: on_purchase_detected
+    if product_code:
+        purchase_keywords = ["شراء", "اشتري", "طلب", "حجز", "اريد", "عاوز", "ابعتلي", "شحن", "توصيل", "اوردر"]
+        if any(kw in user_input_display.lower() for kw in purchase_keywords):
+            try:
+                plugin_manager.trigger_purchase_hook(sender_id, product_code, {
+                    "source": actual_channel,
+                    "channel": actual_channel,
+                    "product_name": product_info.name if product_info else product_code,
+                    "price": product_info.price if product_info else 0,
+                })
+            except Exception as e:
+                logger.warning(f"Plugin purchase hook error: {e}")
+
+    # Send reply via the correct channel
+    if actual_channel == "whatsapp":
+        await send_whatsapp_message(sender_id, reply_text)
+    else:
+        await send_fb_message(sender_id, reply_text)
+
     update_history(sender_id, "assistant", reply_text)
 
     return reply_text

@@ -1,0 +1,9 @@
+{
+  "id": "fashion_store",
+  "name": "Fashion Store Inventory Injector",
+  "version": "1.0.0",
+  "plugin_type": "domain",
+  "description": "فحص كود المنتج والمقاسات ونسبة الخصم وحقن بيانات المخزن المحدثة للنموذج",
+  "entrypoint": "adapter.lua",
+  "enabled": true
+}

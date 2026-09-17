@@ -1,0 +1,233 @@
+<div class="whatsapp-extension-container">
+    <div class="extension-header-banner card glass-card mb-4" style="background: linear-gradient(135deg, rgba(37, 211, 102, 0.15), rgba(18, 140, 126, 0.05)); border: 1px solid rgba(37, 211, 102, 0.3);">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: #25d366; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);">
+                    <i data-lucide="message-circle"></i>
+                </div>
+                <div>
+                    <h2 class="m-0" style="color: #25d366;">بوابة واتساب الذكية (OpenWA Gateway)</h2>
+                    <p class="text-muted m-0 small">إضافة مدمجة v3 تدير محادثات الواتساب، مسح QR Code، والرد الآلي الذكي</p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span id="waExtStatusBadge" class="badge" style="background: rgba(255,255,255,0.1); padding: 8px 14px; font-size: 0.85rem; border-radius: 20px;">
+                    <span class="status-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#888; margin-left:6px;"></span>
+                    <span id="waExtStatusText">جارِ فحص الاتصال...</span>
+                </span>
+                <button class="btn btn-primary btn-sm" id="waExtConnectBtn" onclick="waExtConnect()">
+                    <i data-lucide="power"></i>
+                    <span>اتصال / بدء الجلسة</span>
+                </button>
+                <button class="btn btn-outline btn-sm" id="waExtDisconnectBtn" onclick="waExtDisconnect()" style="display:none;">
+                    <i data-lucide="power-off"></i>
+                    <span>قطع الاتصال</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <!-- CARD 1: QR Code Authentication -->
+        <div class="card glass-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i data-lucide="qr-code" style="color: #25d366;"></i>
+                    <h3>رمز الاستجابة السريع (QR Code)</h3>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="waExtFetchQr()">
+                    <i data-lucide="refresh-cw"></i>
+                    <span>تحديث الرمز</span>
+                </button>
+            </div>
+            <div class="card-body text-center p-4">
+                <div id="waExtQrContainer" style="min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1); padding: 20px;">
+                    <div id="waExtQrPlaceholder">
+                        <i data-lucide="smartphone" style="width: 48px; height: 48px; color: #666; margin-bottom: 12px;"></i>
+                        <p class="text-muted small">اضغط على <strong>اتصال</strong> لبدء الجلسة وعرض رمز الـ QR</p>
+                    </div>
+                    <img id="waExtQrImage" src="" alt="WhatsApp QR" style="display: none; max-width: 240px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); background: white; padding: 10px;" />
+                    <div id="waExtConnectedMsg" style="display: none; color: #25d366;">
+                        <i data-lucide="check-circle" style="width: 56px; height: 56px; margin-bottom: 10px;"></i>
+                        <h4>الجلسة متصلة ونشطة بالفعل! ✅</h4>
+                        <p class="text-muted small">هاتفك مربوط بالبوابة وجاهز لاستقبال وإرسال الرسائل.</p>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3 text-start small">
+                    <i data-lucide="info"></i>
+                    <span><strong>طريقة الربط:</strong> افتح واتساب على هاتفك > الأجهزة المرتبطة (Linked Devices) > ربط جهاز > وجّه الكاميرا نحو الرمز.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARD 2: Outbound Message & Image Tester -->
+        <div class="card glass-card">
+            <div class="card-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i data-lucide="send" style="color: #25d366;"></i>
+                    <h3>إرسال رسالة اختبارية عبر واتساب</h3>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">يمكنك تجربة إرسال رسالة نصية أو رابط صورة لأي رقم واتساب للتحقق من عمل البوابة:</p>
+
+                <div class="form-group mb-3">
+                    <label class="form-label">رقم الهاتف (مع كود الدولة أو محلي مصري):</label>
+                    <input type="text" id="waExtTestPhone" class="input-field" placeholder="مثال: 01012345678 أو 201012345678" dir="ltr" />
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="form-label">نص الرسالة:</label>
+                    <textarea id="waExtTestMsg" class="input-field" rows="3" placeholder="اكتب رسالتك التجريبية هنا..."></textarea>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="form-label">رابط صورة (اختياري):</label>
+                    <input type="url" id="waExtTestImg" class="input-field" placeholder="https://example.com/image.jpg" dir="ltr" />
+                </div>
+
+                <button class="btn btn-primary w-100" id="waExtSendBtn" onclick="waExtSendMessage()">
+                    <i data-lucide="send"></i>
+                    <span>إرسال الرسالة الآن 🚀</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- WhatsApp Extension Script (v3 Isolated) ---
+(function() {
+    async function waExtCheckStatus() {
+        try {
+            const res = await fetch('/ext/whatsapp_openwa/status');
+            const data = await res.json();
+            const badge = document.getElementById('waExtStatusBadge');
+            const text = document.getElementById('waExtStatusText');
+            const connectBtn = document.getElementById('waExtConnectBtn');
+            const disconnectBtn = document.getElementById('waExtDisconnectBtn');
+            const placeholder = document.getElementById('waExtQrPlaceholder');
+            const qrImg = document.getElementById('waExtQrImage');
+            const connectedMsg = document.getElementById('waExtConnectedMsg');
+
+            if (data.is_connected) {
+                if (badge) {
+                    badge.style.background = 'rgba(37, 211, 102, 0.2)';
+                    badge.style.color = '#25d366';
+                    text.innerText = 'متصل ونشط ✅';
+                }
+                if (connectBtn) connectBtn.style.display = 'none';
+                if (disconnectBtn) disconnectBtn.style.display = 'inline-flex';
+                if (placeholder) placeholder.style.display = 'none';
+                if (qrImg) qrImg.style.display = 'none';
+                if (connectedMsg) connectedMsg.style.display = 'block';
+            } else if (data.has_qr) {
+                if (badge) {
+                    badge.style.background = 'rgba(245, 158, 11, 0.2)';
+                    badge.style.color = '#f59e0b';
+                    text.innerText = 'بانتظار مسح QR 📷';
+                }
+                if (connectBtn) connectBtn.style.display = 'none';
+                if (disconnectBtn) disconnectBtn.style.display = 'inline-flex';
+                waExtFetchQr();
+            } else {
+                if (badge) {
+                    badge.style.background = 'rgba(255, 255, 255, 0.1)';
+                    badge.style.color = '#888';
+                    text.innerText = 'غير متصل (Disconnected)';
+                }
+                if (connectBtn) connectBtn.style.display = 'inline-flex';
+                if (disconnectBtn) disconnectBtn.style.display = 'none';
+                if (placeholder) placeholder.style.display = 'block';
+                if (qrImg) qrImg.style.display = 'none';
+                if (connectedMsg) connectedMsg.style.display = 'none';
+            }
+        } catch (e) {
+            console.warn('[WA Ext] status check error:', e);
+        }
+    }
+
+    window.waExtConnect = async function() {
+        showToast('جارِ الاتصال بـ OpenWA وبدء الجلسة...', 'info');
+        try {
+            const res = await fetch('/ext/whatsapp_openwa/connect', { method: 'POST' });
+            const data = await res.json();
+            showToast('تم إرسال أمر الاتصال بنجاح', 'success');
+            setTimeout(waExtCheckStatus, 1500);
+        } catch (e) {
+            showToast('خطأ في الاتصال: ' + e.message, 'error');
+        }
+    };
+
+    window.waExtDisconnect = async function() {
+        if (!confirm('هل تريد فعلاً قطع جلسة الواتساب؟')) return;
+        try {
+            await fetch('/ext/whatsapp_openwa/disconnect', { method: 'POST' });
+            showToast('تم قطع الجلسة بنجاح', 'info');
+            waExtCheckStatus();
+        } catch (e) {
+            showToast('خطأ: ' + e.message, 'error');
+        }
+    };
+
+    window.waExtFetchQr = async function() {
+        try {
+            const res = await fetch('/ext/whatsapp_openwa/qr');
+            const data = await res.json();
+            const qrImg = document.getElementById('waExtQrImage');
+            const placeholder = document.getElementById('waExtQrPlaceholder');
+            const connectedMsg = document.getElementById('waExtConnectedMsg');
+
+            if (data.status === 'success' && data.qr) {
+                if (placeholder) placeholder.style.display = 'none';
+                if (connectedMsg) connectedMsg.style.display = 'none';
+                if (qrImg) {
+                    qrImg.src = data.qr.startsWith('data:') ? data.qr : 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(data.qr);
+                    qrImg.style.display = 'block';
+                }
+            } else {
+                waExtCheckStatus();
+            }
+        } catch (e) {
+            console.warn('[WA Ext] QR fetch error:', e);
+        }
+    };
+
+    window.waExtSendMessage = async function() {
+        const phone = document.getElementById('waExtTestPhone').value.trim();
+        const msg = document.getElementById('waExtTestMsg').value.trim();
+        const img = document.getElementById('waExtTestImg').value.trim();
+
+        if (!phone || (!msg && !img)) {
+            showToast('يرجى كتابة رقم الهاتف ونص الرسالة أو الصورة', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('waExtSendBtn');
+        if (btn) btn.disabled = true;
+
+        try {
+            const res = await fetch('/ext/whatsapp_openwa/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: phone, message: msg, image_url: img })
+            });
+            const data = await res.json();
+            if (res.ok && data.status === 'success') {
+                showToast('تم إرسال الرسالة عبر الواتساب بنجاح! ✅', 'success');
+                document.getElementById('waExtTestMsg').value = '';
+            } else {
+                showToast(data.detail || data.message || 'فشل إرسال الرسالة', 'error');
+            }
+        } catch (e) {
+            showToast('خطأ في الإرسال: ' + e.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    };
+
+    // Auto-check on load
+    waExtCheckStatus();
+    if (window.lucide) lucide.createIcons();
+})();
+</script>

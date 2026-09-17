@@ -1,0 +1,9 @@
+{
+  "id": "facebook_messenger",
+  "name": "Facebook Messenger Adapter",
+  "version": "1.0.0",
+  "plugin_type": "channel",
+  "description": "استخراج رسائل صفحة الفيسبوك وتنسيق الرد التلقائي عبر Messenger API",
+  "entrypoint": "adapter.lua",
+  "enabled": true
+}

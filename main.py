@@ -34,6 +34,9 @@ from hardware_detector import get_system_hardware
 from llamacpp_manager import llama_manager
 from plugin_manager import plugin_manager
 
+# WhatsApp adapter (initialized lazily on startup)
+_whatsapp_adapter = None
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -95,10 +98,35 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     hw = get_system_hardware()
     logger.info("Hardware detected: %s RAM, %d cores (%s)", f"{hw['ram_total_gb']}GB", hw['cpu_cores'], hw['tier_label'])
 
+    # Initialize WhatsApp adapter if enabled
+    global _whatsapp_adapter
+    try:
+        wa_config = config
+        if wa_config.get("whatsapp_enabled", False):
+            from plugins.whatsapp_openwa.adapter import WhatsAppAdapter
+            _whatsapp_adapter = WhatsAppAdapter(
+                openwa_url=wa_config.get("whatsapp_openwa_url", "http://localhost:2785"),
+                api_key=wa_config.get("whatsapp_openwa_api_key", ""),
+                session_id=wa_config.get("whatsapp_session_id", "market-bot"),
+            )
+            logger.info("WhatsApp OpenWA adapter initialized (session: %s)", wa_config.get("whatsapp_session_id", "market-bot"))
+        else:
+            logger.info("WhatsApp integration disabled in config (set whatsapp_enabled=true to activate)")
+    except Exception as e:
+        logger.warning(f"WhatsApp adapter initialization skipped: {e}")
+
     yield
 
     logger.info("Shutting down OmniContext AI...")
     _shutdown_event.set()
+
+    # Shutdown WhatsApp adapter
+    if _whatsapp_adapter:
+        try:
+            await _whatsapp_adapter.shutdown()
+            logger.info("WhatsApp adapter shut down cleanly")
+        except Exception as e:
+            logger.warning(f"Error shutting down WhatsApp adapter: {e}")
 
     # Automatically stop llama-server process if running
     try:
@@ -121,8 +149,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    title="M.A.R.K.E.T (OmniContext AI 2.0 Dashboard & Bot)",
-    version="2.0.0",
+    title="M.A.R.K.E.T (OmniContext AI 3.0 IDE & Extension Studio)",
+    version="3.0.0",
     lifespan=lifespan,
 )
 
@@ -133,6 +161,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount all v3 dynamic extension routers into FastAPI app
+plugin_manager.mount_extension_routers(app)
 
 
 async def log_message(sender: str, message: str):
@@ -174,8 +205,8 @@ async def health_check():
     hw = get_system_hardware()
     return {
         "status": "healthy",
-        "app_name": "OmniContext AI",
-        "version": "2.0.0",
+        "app_name": "M.A.R.K.E.T AI",
+        "version": "3.0.0",
         "webhook_url": WEBHOOK_URL,
         "excel_products": products_count,
         "ai_provider": config.get("ai_provider", "ollama"),
@@ -281,133 +312,837 @@ async def toggle_plugin_endpoint(data: dict):
     return {"status": "success", "plugin_id": plugin_id, "enabled": enabled}
 
 
+@app.get("/api/v3/coder/status")
+async def get_coder_model_status():
+    """Reports status of the dedicated Qwen Coder 0.5B extension generator engine."""
+    config = load_config()
+    coder_model = config.get("coder_model", "qwen2.5-coder:0.5b")
+    coder_url = config.get("coder_ollama_url", config.get("ollama_url", "http://localhost:11434"))
+
+    # Check Ollama
+    is_available = False
+    try:
+        models = await AIProviderManager.get_ollama_models(coder_url)
+        is_available = any(coder_model in (m.get("name") or "") for m in models)
+    except Exception:
+        pass
+
+    return {
+        "status": "success",
+        "coder_engine": "Qwen 2.5 Coder 0.5B",
+        "model": coder_model,
+        "endpoint": coder_url,
+        "is_available_locally": is_available,
+        "role": "مخصص حصرياً لبرمجة وتوليد إضافات v3 المستقلة (منفصل تماماً عن محرك المحادثات)",
+        "chat_model_separated": True
+    }
+
+
 @app.post("/api/plugins/generate")
 async def generate_ai_plugin_endpoint(data: dict):
     user_prompt = data.get("prompt", "").strip()
     if not user_prompt:
         raise HTTPException(status_code=400, detail="وصف الإضافة المطلوبة فارغ")
 
-    await log_message("AIPluginGenerator", f"Generating new Python plugin via AI model for: {user_prompt}")
+    await log_message("QwenCoder", f"Generating M.A.R.K.E.T v3 Extension via Qwen Coder for: {user_prompt}")
     config = load_config()
 
-    system_instruction = """
-[CONTEXT & SYSTEM ARCHITECTURE]
-You are an expert Python software engineer for the M.A.R.K.E.T AI Engine (OmniContext v2.0).
-M.A.R.K.E.T is an intelligent customer service & e-commerce automation platform built with Python FastAPI, local LLMs (llama.cpp / Qwen 2.5), Excel inventory database, and Meta Facebook Messenger/Feed integrations.
+    system_instruction = """أنت مهندس إضافات خفيف ومباشر لنظام M.A.R.K.E.T.
+المطلوب منك برمجة إضافة كاملة بناءً على طلب المستخدم بدقة تامة.
+الإضافة تتكون حصراً من 3 ملفات، ويجب إخراج كل ملف في كود منفصل كالتالي:
 
-[PLUGIN SPECIFICATION]
-You are generating a standalone single-file Python plugin for the M.A.R.K.E.T plugin system located in `plugins/`.
-Every plugin MUST define a class named `Plugin` inheriting from `BasePlugin`.
-
-Required Class Structure & Attributes:
-```python
-import os
-import json
-import logging
-from typing import Dict, Any, Optional
-from plugin_manager import BasePlugin
-
-class Plugin(BasePlugin):
-    plugin_id = "custom_plugin_id"  # Unique ID (lowercase alphanumeric + underscores)
-    name = "اسم الإضافة"  # Arabic title
-    description = "وصف تفصيلي لوظيفة الإضافة"
-    version = "1.0.0"
-    author = "Local AI Generator"
-    enabled = True
-
-    def on_message_received(self, user_id: str, message: str) -> Optional[Dict[str, Any]]:
-        # Triggered when customer sends a message
-        return None
-
-    def on_reply_generated(self, user_id: str, prompt: str, reply: str, metadata: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
-        # Triggered when AI reply is generated
-        return None
-
-    def on_purchase_detected(self, user_id: str, product_code: str, details: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
-        # Triggered when purchase / order is detected
-        return None
-
-    def get_ui_snippet(self) -> Optional[str]:
-        # Optional: Return HTML/CSS snippet to render custom visual icons or elements in the dashboard UI
-        return None
+### manifest.json
+```json
+{
+  "manifest_version": 3,
+  "id": "employee_manager",
+  "name": "إدارة الموظفين",
+  "version": "1.0.0",
+  "description": "إضافة لعرض وتعديل أسماء وبيانات الموظفين",
+  "icon": "users",
+  "entrypoint": "backend.py",
+  "permissions": ["ui"],
+  "enabled": true,
+  "ui": {
+    "tab": {
+      "id": "tab-employees",
+      "title": "الموظفين",
+      "icon": "users",
+      "template": "ui/tab.html"
+    }
+  },
+  "routes": {
+    "prefix": "/ext/employee_manager"
+  }
+}
 ```
 
-[IMPORTANT INSTRUCTIONS]
-1. Write 100% syntactically valid Python 3 code.
-2. If the user request is related to UI elements, visual badges, or custom icons, implement `get_ui_snippet(self)` returning valid HTML/CSS strings so it renders dynamically in the dashboard.
-3. OUTPUT ONLY THE EXECUTABLE PYTHON CODE inside a single markdown code block (` ```python ... ``` `). Do NOT include conversational text outside the code block.
+### backend.py
+```python
+from fastapi import APIRouter, Request
+import logging
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+# قائمة تخزين تجريبية أو بيانات
+employees = [
+    {"id": 1, "name": "أحمد محمود", "role": "مبيعات"},
+    {"id": 2, "name": "سارة علي", "role": "خدمة عملاء"}
+]
+
+@router.get("/list")
+async def get_employees():
+    return {"status": "success", "employees": employees}
+
+@router.post("/update")
+async def update_employee(request: Request):
+    data = await request.json()
+    emp_id = data.get("id")
+    new_name = data.get("name")
+    for emp in employees:
+        if emp["id"] == emp_id:
+            emp["name"] = new_name
+            return {"status": "success", "message": "تم تحديث الاسم بنجاح"}
+    return {"status": "error", "message": "الموظف غير موجود"}
+```
+
+### ui/tab.html
+```html
+<div class="card glass-card p-4 space-y-4">
+    <h2 class="text-base font-bold">قائمة الموظفين</h2>
+    <div id="emp-list" class="space-y-2">
+        <!-- يتم عرض الموظفين وتعديلهم هنا -->
+    </div>
+</div>
+```
+
+قواعد صارمة:
+1. نفّذ المطلوب في طلب المستخدم بالتحديد مع كتابة كود بايثون وHTML متكامل وفعّال.
+2. لا تستخدم أطر عمل ثقيلة خارجية.
+3. أخرج الكود مباشرة بدون مقدمات أو خاتمة.
 """
 
     messages = [
         {"role": "system", "content": system_instruction},
-        {"role": "user", "content": f"وصف الإضافة المطلوبة: {user_prompt}"}
+        {"role": "user", "content": f"المطلوب برمجة هذه الإضافة بالكامل بالملفات الثلاثة: {user_prompt}"}
     ]
 
     try:
-        raw_reply = await AIProviderManager.complete_chat(messages, config, temperature=0.3)
+        # Generate code using the dedicated Qwen Coder model runner
+        raw_reply = await AIProviderManager.complete_coder(messages, config, temperature=0.1)
         if not raw_reply:
-            raise HTTPException(status_code=500, detail="لم يتلقّ الخادم رد من نموذج الذكاء الاصطناعي (تأكد من اختيار وتأكيد المزود في الإعدادات أو تشغيل llama-server)")
+            raise HTTPException(status_code=500, detail="تعذر الحصول على رد من محرك البرمجة Qwen Coder (تأكد من تشغيل Ollama أو تفعيل المزود في الإعدادات)")
 
-        # Extract python code block
-        code = raw_reply.strip()
-        if "```python" in code:
-            code = code.split("```python")[1].split("```")[0].strip()
-        elif "```" in code:
-            parts = code.split("```")
-            if len(parts) >= 2:
-                code = parts[1].strip()
-
-        # Fallback safeguard if model output lacks Plugin class
-        if "class Plugin(" not in code:
-            import re
-            safe_clean_id = re.sub(r'[^a-zA-Z0-9_]', '', user_prompt.lower().replace(" ", "_"))[:20] or "custom_ai_plugin"
-            code = f'''import logging
-from typing import Dict, Any, Optional
-from plugin_manager import BasePlugin
-
-class Plugin(BasePlugin):
-    plugin_id = "{safe_clean_id}"
-    name = "إضافة مخصصة: {user_prompt[:25]}"
-    description = "{user_prompt}"
-    version = "1.0.0"
-    author = "Local AI Generator"
-    enabled = True
-
-    def on_reply_generated(self, user_id: str, prompt: str, reply: str, metadata: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
-        logging.info(f"[{safe_clean_id}] Triggered for prompt: {{prompt}}")
-        return {{"status": "active", "prompt": prompt}}
-'''
-
-        # Generate safe plugin filename
         import re, time
-        clean_prompt_words = re.sub(r'[^a-zA-Z0-9_]', '', user_prompt.lower().replace(" ", "_"))
-        if not clean_prompt_words or clean_prompt_words.strip("_") == "":
-            safe_id = f"custom_plugin_{int(time.time())}"
-        else:
-            safe_id = clean_prompt_words[:20].strip("_") or f"custom_plugin_{int(time.time())}"
+        # Extract extension id or build safe id
+        safe_id = re.sub(r'[^a-zA-Z0-9_]', '', user_prompt.lower().replace(" ", "_"))
+        safe_id = safe_id[:18].strip("_") or f"ext_{int(time.time())}"
 
-        filename = f"ai_{safe_id}.py"
-        plugins_folder = os.path.join(os.path.dirname(__file__), "plugins")
-        os.makedirs(plugins_folder, exist_ok=True)
-        plugin_filepath = os.path.join(plugins_folder, filename)
+        # Parse files from model response using clean regex
+        manifest_content = None
+        backend_content = None
+        tab_html_content = None
 
-        with open(plugin_filepath, "w", encoding="utf-8") as f:
-            f.write(code)
+        m_match = re.search(r'###\s*(?:\d+\.\s*)?manifest\.json[\s\S]*?```(?:json)?\s*([\s\S]*?)```', raw_reply)
+        if m_match:
+            try:
+                manifest_content = json.loads(m_match.group(1).strip())
+                if isinstance(manifest_content, dict) and "id" in manifest_content and manifest_content["id"] not in ("employee_manager", "my_extension_id", ""):
+                    safe_id = manifest_content["id"]
+                elif isinstance(manifest_content, dict):
+                    manifest_content["id"] = safe_id
+                    manifest_content["routes"] = {"prefix": f"/ext/{safe_id}"}
+                    if "ui" in manifest_content and "tab" in manifest_content["ui"]:
+                        manifest_content["ui"]["tab"]["id"] = f"tab-{safe_id}"
+            except Exception as e:
+                logger.warning(f"Error parsing manifest.json: {e}")
 
-        # Reload plugins
+        b_match = re.search(r'###\s*(?:\d+\.\s*)?backend\.py[\s\S]*?```(?:python)?\s*([\s\S]*?)```', raw_reply)
+        if b_match:
+            backend_content = b_match.group(1).strip()
+
+        t_match = re.search(r'###\s*(?:\d+\.\s*)?(?:ui/)?tab\.html[\s\S]*?```(?:html)?\s*([\s\S]*?)```', raw_reply)
+        if t_match:
+            tab_html_content = t_match.group(1).strip()
+
+        # If model returned a single python block without manifest tags, fallback gracefully
+        if not backend_content:
+            if "```python" in raw_reply:
+                backend_content = raw_reply.split("```python")[1].split("```")[0].strip()
+            elif "```" in raw_reply:
+                parts = raw_reply.split("```")
+                if len(parts) >= 2:
+                    backend_content = parts[1].strip()
+            else:
+                backend_content = raw_reply.strip()
+
+        # Build default manifest if none parsed
+        if not manifest_content:
+            manifest_content = {
+                "manifest_version": 3,
+                "id": safe_id,
+                "name": f"إضافة: {user_prompt[:25]}",
+                "version": "1.0.0",
+                "description": user_prompt,
+                "icon": "puzzle",
+                "entrypoint": "backend.py",
+                "permissions": ["network", "ui", "webhooks"],
+                "enabled": True,
+                "ui": {
+                    "tab": {
+                        "id": f"tab-{safe_id}",
+                        "title": user_prompt[:18],
+                        "icon": "puzzle",
+                        "template": "ui/tab.html"
+                    },
+                    "settings_fields": [
+                        {
+                            "key": "enabled",
+                            "label": "تفعيل الإضافة",
+                            "type": "boolean",
+                            "default": True
+                        }
+                    ]
+                },
+                "routes": {
+                    "prefix": f"/ext/{safe_id}",
+                    "webhooks": ["/webhook"]
+                }
+            }
+
+        # Build default tab html if none parsed
+        if not tab_html_content:
+            tab_html_content = f'''<div class="card glass-card p-4">
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <div style="width:40px; height:40px; border-radius:10px; background:var(--primary); display:flex; align-items:center; justify-content:center; color:white;">
+            <i data-lucide="puzzle"></i>
+        </div>
+        <div>
+            <h2 class="m-0">{manifest_content.get("name", safe_id)}</h2>
+            <p class="text-muted small m-0">{user_prompt}</p>
+        </div>
+    </div>
+    <div class="alert alert-info">
+        تم توليد هذه الإضافة وتثبيتها بنجاح عبر محرك Qwen 2.5 Coder 0.5B المخصص.
+    </div>
+</div>'''
+
+        # Ensure router exists in backend code
+        if "APIRouter" not in backend_content:
+            backend_content = f"""from fastapi import APIRouter, Request
+import logging
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+@router.get("/status")
+async def get_status():
+    return {{"status": "ok", "extension": "{safe_id}"}}
+
+@router.post("/webhook")
+async def handle_webhook(request: Request):
+    body = await request.json()
+    logger.info(f"[{safe_id}] Webhook data: {{body}}")
+    return {{"status": "success", "received": True}}
+
+{backend_content}
+"""
+
+        # Automated syntax validation and repair loop
+        try:
+            compile(backend_content, "backend.py", "exec")
+        except SyntaxError as syn_err:
+            err_msg = f"SyntaxError on line {syn_err.lineno}: {syn_err.msg}"
+            await log_message("QwenCoder", f"[Feedback Loop] ⚠️ Generated backend.py has {err_msg}. Triggering repair via omni_engine...")
+            repair_messages = [
+                {"role": "system", "content": "You are a code fixer. Fix the exact syntax error and output ONLY the complete corrected Python code inside a markdown block. No explanations."},
+                {"role": "user", "content": f"The following backend.py code has an error:\n```python\n{backend_content}\n```\nError: {err_msg}\nPlease fix the error and return the full working code."}
+            ]
+            repair_res = await AIProviderManager.complete_coder(repair_messages, config, temperature=0.1)
+            if repair_res and "```" in repair_res:
+                parts = repair_res.split("```")
+                if len(parts) >= 2:
+                    fixed_code = parts[1].strip()
+                    lines = fixed_code.split("\n", 1)
+                    if len(lines) > 1 and lines[0].strip() == "python":
+                        fixed_code = lines[1].strip()
+                    try:
+                        compile(fixed_code, "backend.py", "exec")
+                        backend_content = fixed_code
+                        await log_message("QwenCoder", f"[Feedback Loop] ✅ omni_engine successfully auto-repaired backend.py!")
+                    except Exception:
+                        pass
+
+        # Save into plugins/<safe_id>/
+        ext_folder = os.path.join(os.path.dirname(__file__), "plugins", safe_id)
+        os.makedirs(ext_folder, exist_ok=True)
+        ui_folder = os.path.join(ext_folder, "ui")
+        os.makedirs(ui_folder, exist_ok=True)
+
+        with open(os.path.join(ext_folder, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump(manifest_content, f, ensure_ascii=False, indent=2)
+
+        with open(os.path.join(ext_folder, "backend.py"), "w", encoding="utf-8") as f:
+            f.write(backend_content)
+
+        with open(os.path.join(ui_folder, "tab.html"), "w", encoding="utf-8") as f:
+            f.write(tab_html_content)
+
+        # Reload plugins and dynamically mount routes into running FastAPI
         plugin_manager.load_plugins()
-        await log_message("AIPluginGenerator", f"New plugin saved to plugins/{filename} and loaded successfully!")
+        plugin_manager.mount_extension_routers(app)
+        await log_message("QwenCoder", f"Extension '{safe_id}' created and mounted successfully under /ext/{safe_id}")
 
         return {
             "status": "success",
-            "file_name": filename,
-            "filename": filename,
-            "message": f"تم توليد كود الإضافة وحفظها في plugins/{filename} بنجاح! 🎉",
-            "plugins": plugin_manager.list_plugins()
+            "extension_id": safe_id,
+            "manifest": manifest_content,
+            "message": f"تمت برمجة وتثبيت إضافة v3 الكاملة ({manifest_content.get('name')}) في plugins/{safe_id}/ وتفعيلها فورياً! 🎉",
+            "schema": plugin_manager.get_ui_schema()
         }
     except Exception as e:
         logger.error(f"Plugin generation error: {e}")
-        raise HTTPException(status_code=500, detail=f"خطأ في توليد الإضافة: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"خطأ في توليد وبرمجة الإضافة: {str(e)}")
+
+
+@app.post("/api/plugins/reload")
+async def reload_plugins_endpoint():
+    """Hot-reloads all plugins (single-file and channel directories) from disk."""
+    plugin_manager.load_plugins()
+    plugin_manager.mount_extension_routers(app)
+    count = len(plugin_manager.plugins) + len(plugin_manager.channel_plugins)
+    await log_message("PluginManager", f"Reloaded all plugins from disk. Total loaded: {count}")
+    return {
+        "status": "success",
+        "message": f"تم إعادة تحميل {count} إضافة بنجاح",
+        "plugins": plugin_manager.list_plugins(),
+        "channels": plugin_manager.get_channel_plugins()
+    }
+
+
+@app.get("/api/channels")
+async def list_channels_endpoint():
+    """Returns all available communication channel plugins (WhatsApp, Telegram, Messenger, etc.)."""
+    return {
+        "status": "success",
+        "channels": plugin_manager.get_channel_plugins()
+    }
+
+
+# ---------------- V3 Chrome-like Extension APIs ----------------
+
+@app.get("/api/v3/ui/schema")
+async def get_v3_ui_schema_endpoint():
+    """Returns dynamic UI schema (tabs, settings fields, badges, widgets) for the Host Shell."""
+    return {"status": "success", "schema": plugin_manager.get_ui_schema()}
+
+
+@app.get("/api/v3/extensions")
+async def list_v3_extensions_endpoint():
+    """Returns all extensions and their manifest declarations."""
+    return {"status": "success", "extensions": plugin_manager.list_plugins()}
+
+
+@app.post("/api/v3/extensions/{extension_id}/toggle")
+async def toggle_v3_extension_endpoint(extension_id: str, data: dict):
+    """Enable or disable an extension dynamically."""
+    enabled = bool(data.get("enabled", True))
+    success = plugin_manager.engine.set_extension_state(extension_id, enabled)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"الإضافة '{extension_id}' غير موجودة")
+    await log_message("ExtensionEngine", f"Extension '{extension_id}' toggled to: {enabled}")
+    return {"status": "success", "extension_id": extension_id, "enabled": enabled}
+
+
+@app.get("/api/v3/extensions/{extension_id}/settings")
+async def get_v3_extension_settings_endpoint(extension_id: str):
+    """Get isolated configuration for an extension."""
+    ext = plugin_manager.engine.extensions.get(extension_id)
+    if not ext:
+        raise HTTPException(status_code=404, detail="Extension not found")
+    return {"status": "success", "extension_id": extension_id, "config": ext.get_config()}
+
+
+@app.post("/api/v3/extensions/{extension_id}/settings")
+async def save_v3_extension_settings_endpoint(extension_id: str, data: dict):
+    """Save isolated configuration for an extension."""
+    ext = plugin_manager.engine.extensions.get(extension_id)
+    if not ext:
+        raise HTTPException(status_code=404, detail="Extension not found")
+    success = ext.save_config(data)
+    if success:
+        await log_message("ExtensionEngine", f"Saved configuration for extension '{extension_id}'")
+        return {"status": "success", "extension_id": extension_id, "config": ext.get_config()}
+    raise HTTPException(status_code=500, detail="فشل حفظ إعدادات الإضافة")
+
+
+# ---------------- Extension Studio & AI Workspace APIs ----------------
+
+@app.get("/api/v3/extensions/{extension_id}/files")
+async def get_extension_files(extension_id: str):
+    """Lists all files in an extension directory for the workspace code editor."""
+    ext = plugin_manager.engine.extensions.get(extension_id)
+    if not ext:
+        # Check if it's a legacy single file plugin
+        legacy_file = Path(__file__).parent / "plugins" / f"{extension_id}.py"
+        if legacy_file.exists():
+            return {"status": "success", "extension_id": extension_id, "files": [f"{extension_id}.py"], "is_single_file": True}
+        raise HTTPException(status_code=404, detail="Extension not found")
+
+    file_list = []
+    for p in ext.dir_path.rglob("*"):
+        if p.is_file() and not any(part.startswith("__") or part.startswith(".") for part in p.parts) and not p.name.endswith(".pyc"):
+            rel_path = str(p.relative_to(ext.dir_path))
+            file_list.append(rel_path)
+
+    # Sort files logically: manifest first, then backend, then ui files, then config
+    def file_sort_key(name):
+        if name == "manifest.json": return 0
+        if name in ("backend.py", "adapter.py"): return 1
+        if name.startswith("ui/"): return 2
+        if name == "config.json": return 3
+        return 4
+
+    file_list.sort(key=file_sort_key)
+    return {
+        "status": "success",
+        "extension_id": extension_id,
+        "files": file_list,
+        "is_single_file": False
+    }
+
+
+@app.get("/api/v3/extensions/{extension_id}/file")
+async def get_extension_file_content(extension_id: str, path: str):
+    """Retrieves file content for inspection in the workspace code viewer."""
+    ext = plugin_manager.engine.extensions.get(extension_id)
+    if not ext:
+        # Check single file plugin
+        legacy_file = Path(__file__).parent / "plugins" / f"{extension_id}.py"
+        if legacy_file.exists() and path in (f"{extension_id}.py", ""):
+            content = legacy_file.read_text(encoding="utf-8")
+            return {"status": "success", "extension_id": extension_id, "path": f"{extension_id}.py", "content": content}
+        raise HTTPException(status_code=404, detail="Extension not found")
+
+    target_file = (ext.dir_path / path).resolve()
+    # Security check: ensure path is inside extension directory
+    if not str(target_file).startswith(str(ext.dir_path.resolve())):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not target_file.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        content = target_file.read_text(encoding="utf-8")
+        return {
+            "status": "success",
+            "extension_id": extension_id,
+            "path": path,
+            "content": content
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {str(e)}")
+
+
+@app.post("/api/v3/extensions/{extension_id}/file")
+async def save_extension_file_content(extension_id: str, data: dict):
+    """Saves manual code edits directly into the extension's file."""
+    path = data.get("path", "").strip()
+    content = data.get("content", "")
+    if not path:
+        raise HTTPException(status_code=400, detail="Path is required")
+
+    ext = plugin_manager.engine.extensions.get(extension_id)
+    if not ext:
+        legacy_file = Path(__file__).parent / "plugins" / f"{extension_id}.py"
+        if legacy_file.exists() and path == f"{extension_id}.py":
+            legacy_file.write_text(content, encoding="utf-8")
+            plugin_manager.load_plugins()
+            return {"status": "success", "message": "تم حفظ كود الإضافة بنجاح!"}
+        raise HTTPException(status_code=404, detail="Extension not found")
+
+    target_file = (ext.dir_path / path).resolve()
+    if not str(target_file).startswith(str(ext.dir_path.resolve())):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        target_file.write_text(content, encoding="utf-8")
+
+        # Reload extension engine & mount routers if manifest or backend modified
+        if path.endswith(".py") or path == "manifest.json":
+            plugin_manager.load_plugins()
+            plugin_manager.mount_extension_routers(app)
+
+        await log_message("Workspace", f"Saved edits to '{extension_id}/{path}'")
+        return {"status": "success", "message": f"تم حفظ الملف {path} بنجاح!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+
+
+@app.post("/api/v3/extensions/{extension_id}/ai-edit")
+async def ai_edit_extension_file(extension_id: str, data: dict):
+    """
+    The AI Modification Box (Qwen 2.5 Coder):
+    Takes user instruction in natural language and modifies the file in its exact place!
+    """
+    path = data.get("path", "").strip()
+    instruction = data.get("instruction", "").strip()
+
+    if not path or not instruction:
+        raise HTTPException(status_code=400, detail="مسار الملف وتوجيهات التعديل مطلوبة")
+
+    ext = plugin_manager.engine.extensions.get(extension_id)
+    if not ext:
+        legacy_file = Path(__file__).parent / "plugins" / f"{extension_id}.py"
+        if legacy_file.exists() and path == f"{extension_id}.py":
+            target_file = legacy_file
+        else:
+            raise HTTPException(status_code=404, detail="Extension not found")
+    else:
+        target_file = (ext.dir_path / path).resolve()
+        if not str(target_file).startswith(str(ext.dir_path.resolve())):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+    if not target_file.exists():
+        raise HTTPException(status_code=404, detail="File does not exist")
+
+    current_code = target_file.read_text(encoding="utf-8")
+    config = load_config()
+
+    # Balanced file-specific rules
+    file_rules = ""
+    if path.endswith(".py"):
+        file_rules = """- ROLE: Lightweight backend logic for API communication, webhook processing, or event handling.
+- RULES: Use standard libraries or `requests`. Do NOT build standalone servers (no Flask/Django). Keep FastAPI router or handle functions clean."""
+    elif path.endswith(".html"):
+        file_rules = """- ROLE: Dashboard UI tab component using Tailwind CSS.
+- RULES: Output a clean <div> card with inputs, action buttons, and a status/result area. Do NOT wrap in <html> or <body> tags."""
+    elif path.endswith(".json"):
+        file_rules = """- ROLE: Configuration or manifest.
+- RULES: Output 100% valid JSON with exact syntax."""
+
+    system_msg = f"""
+You are Qwen 2.5 Coder, a precision code editor for M.A.R.K.E.T v3 extensions.
+You are editing the file `{path}` for extension `{extension_id}`.
+
+[EXTENSION FILE ARCHITECTURE]:
+{file_rules}
+
+[CURRENT FILE CONTENT]:
+```{path.split('.')[-1]}
+{current_code}
+```
+
+[USER INSTRUCTION]:
+{instruction}
+
+[CRITICAL REQUIREMENTS]:
+1. Return the COMPLETE, ready-to-run updated file content inside a single markdown code block (` ```...``` `).
+2. Preserve all existing functionality unless explicitly asked to modify it.
+3. Keep syntax 100% valid.
+4. Do NOT output conversational chit-chat outside the code block.
+"""
+
+    messages = [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": f"نفّذ هذا التعديل على الملف بالكامل: {instruction}"}
+    ]
+
+    await log_message("QwenCoder", f"AI modifying '{extension_id}/{path}' with prompt: {instruction}")
+
+    try:
+        reply = await AIProviderManager.complete_coder(messages, config, temperature=0.1)
+        if not reply:
+            raise HTTPException(status_code=500, detail="تعذر الحصول على رد من محرك Qwen Coder")
+
+        # Extract code from code block
+        def extract_code_block(raw_text: str) -> str:
+            clean = raw_text.strip()
+            if "```" in clean:
+                parts = clean.split("```")
+                if len(parts) >= 2:
+                    first_block = parts[1]
+                    lines = first_block.split("\n", 1)
+                    if len(lines) > 1 and lines[0].strip() in ("python", "json", "html", "js", "css"):
+                        return lines[1].strip()
+                    return first_block.strip()
+            return clean
+
+        new_code = extract_code_block(reply)
+
+        # ── Automated Error Validation & Feedback Loop ────────────────────────
+        validation_error = None
+        if path.endswith(".py"):
+            try:
+                compile(new_code, path, "exec")
+            except SyntaxError as syn_err:
+                validation_error = f"SyntaxError on line {syn_err.lineno}: {syn_err.msg}"
+        elif path.endswith(".json"):
+            try:
+                json.loads(new_code)
+            except json.JSONDecodeError as json_err:
+                validation_error = f"JSONDecodeError on line {json_err.lineno}: {json_err.msg}"
+
+        if validation_error:
+            await log_message("QwenCoder", f"[Feedback Loop] ⚠️ Error detected in '{path}': {validation_error}. Sending feedback to omni_engine for repair...")
+            repair_messages = [
+                {
+                    "role": "system",
+                    "content": "You are an automated code fixer. Fix the exact syntax error and output ONLY the complete corrected file content inside a single markdown code block. No explanations."
+                },
+                {
+                    "role": "user",
+                    "content": f"The following code for `{path}` has an error:\n```{path.split('.')[-1]}\n{new_code}\n```\nError: {validation_error}\nPlease fix this error and output the complete valid code."
+                }
+            ]
+            repaired_reply = await AIProviderManager.complete_coder(repair_messages, config, temperature=0.1)
+            if repaired_reply:
+                repaired_code = extract_code_block(repaired_reply)
+                # Re-verify repaired code
+                repair_passed = True
+                if path.endswith(".py"):
+                    try:
+                        compile(repaired_code, path, "exec")
+                    except Exception:
+                        repair_passed = False
+                elif path.endswith(".json"):
+                    try:
+                        json.loads(repaired_code)
+                    except Exception:
+                        repair_passed = False
+
+                if repair_passed:
+                    new_code = repaired_code
+                    await log_message("QwenCoder", f"[Feedback Loop] ✅ omni_engine successfully auto-repaired '{path}'!")
+                else:
+                    await log_message("QwenCoder", f"[Feedback Loop] ⚠️ Auto-repair attempted, saving best version.")
+
+        # Save the updated content directly to the file!
+        target_file.write_text(new_code, encoding="utf-8")
+
+        # Auto-reload extensions and routes
+        plugin_manager.load_plugins()
+        plugin_manager.mount_extension_routers(app)
+
+        await log_message("QwenCoder", f"Successfully updated and saved '{extension_id}/{path}'")
+
+        return {
+            "status": "success",
+            "extension_id": extension_id,
+            "path": path,
+            "new_content": new_code,
+            "message": f"تم تطبيق التعديل وحفظه تلقائياً في {path} وتحديث السيرفر بنجاح! 🎉"
+        }
+    except Exception as e:
+        logger.error(f"AI Edit error: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ في تعديل الملف عبر الذكاء الاصطناعي: {str(e)}")
+
+
+@app.get("/api/v3/engine/models-status")
+async def get_models_status():
+    """
+    Confirms Multi-Model Concurrency:
+    - Model 1: Qwen 2.5 Coder 0.5B (Dedicated to Extension Studio & coding)
+    - Model 2: Customer Care & Chat Model (Gemini / Groq / Ollama / Llama)
+    """
+    config = load_config()
+    chat_provider = config.get("ai_provider", "custom")
+    chat_model = config.get(f"{chat_provider}_model", "unknown")
+    coder_model = config.get("coder_model", "qwen2.5-coder:0.5b")
+
+    return {
+        "status": "success",
+        "multi_model_concurrency_enabled": True,
+        "models": {
+            "coder": {
+                "name": coder_model,
+                "role": "مبرمج الإضافات والاستوديو (Extension Coder & AI Box)",
+                "isolated": True
+            },
+            "customer_service": {
+                "provider": chat_provider,
+                "name": chat_model,
+                "role": "خدمة العملاء والرد على المحادثات وقنوات التواصل (Customer Care & Channels)",
+                "isolated": True
+            }
+        },
+        "description": "المحرك يدعم تشغيل الموديلين في نفس الوقت بدون أي تعارض؛ كل طلب يوجه لموديله المخصص."
+    }
+
+
+# ---------------- WhatsApp (OpenWA Gateway) APIs ----------------
+
+def get_whatsapp_adapter_instance():
+    """Returns or lazily creates the WhatsApp OpenWA adapter instance with current config."""
+    global _whatsapp_adapter
+    config = load_config()
+    openwa_url = config.get("whatsapp_openwa_url", "http://localhost:2785")
+    api_key = config.get("whatsapp_openwa_api_key", "")
+    session_id = config.get("whatsapp_session_id", "market-bot")
+
+    if _whatsapp_adapter is None:
+        from plugins.whatsapp_openwa.adapter import WhatsAppAdapter
+        _whatsapp_adapter = WhatsAppAdapter(
+            openwa_url=openwa_url,
+            api_key=api_key,
+            session_id=session_id,
+        )
+    else:
+        _whatsapp_adapter.client.base_url = openwa_url.rstrip("/")
+        _whatsapp_adapter.client.api_key = api_key
+        _whatsapp_adapter.session_id = session_id
+    return _whatsapp_adapter
+
+
+@app.get("/api/whatsapp/status")
+async def get_whatsapp_status_endpoint():
+    """Checks and returns the current WhatsApp session status from OpenWA."""
+    try:
+        adapter = get_whatsapp_adapter_instance()
+        status = await adapter.get_status()
+        return status
+    except Exception as e:
+        logger.error(f"WhatsApp status check error: {e}")
+        return {
+            "status": "error",
+            "connection_status": "error",
+            "is_connected": False,
+            "has_qr": False,
+            "error": str(e),
+            "platform": "whatsapp"
+        }
+
+
+@app.post("/api/whatsapp/connect")
+async def connect_whatsapp_endpoint():
+    """Initiates WhatsApp session connection and requests QR code if needed."""
+    try:
+        adapter = get_whatsapp_adapter_instance()
+        await log_message("WhatsApp", f"Connecting session '{adapter.session_id}' via OpenWA...")
+        result = await adapter.connect()
+        await log_message("WhatsApp", f"Connection result: status={result.get('connection_status')}")
+        return result
+    except Exception as e:
+        logger.error(f"WhatsApp connection error: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ في الاتصال بالواتساب: {str(e)}")
+
+
+@app.post("/api/whatsapp/disconnect")
+async def disconnect_whatsapp_endpoint():
+    """Disconnects the active WhatsApp session."""
+    try:
+        adapter = get_whatsapp_adapter_instance()
+        await log_message("WhatsApp", f"Disconnecting session '{adapter.session_id}'...")
+        result = await adapter.disconnect()
+        return result
+    except Exception as e:
+        logger.error(f"WhatsApp disconnect error: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ في قطع اتصال الواتساب: {str(e)}")
+
+
+@app.get("/api/whatsapp/qr")
+async def get_whatsapp_qr_endpoint():
+    """Retrieves the active QR code for WhatsApp web pairing."""
+    try:
+        adapter = get_whatsapp_adapter_instance()
+        qr_result = await adapter.get_qr()
+        return qr_result
+    except Exception as e:
+        logger.error(f"WhatsApp QR retrieval error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/whatsapp/send")
+async def send_whatsapp_message_endpoint(data: dict):
+    """Sends an outbound WhatsApp text or media message."""
+    phone = data.get("phone", data.get("chat_id", "")).strip()
+    text = data.get("message", data.get("text", "")).strip()
+    image_url = data.get("image_url", "").strip() or None
+
+    if not phone:
+        raise HTTPException(status_code=400, detail="رقم الهاتف أو معرف المحادثة مطلوب")
+    if not text and not image_url:
+        raise HTTPException(status_code=400, detail="نص الرسالة أو رابط الصورة مطلوب")
+
+    try:
+        adapter = get_whatsapp_adapter_instance()
+        result = await adapter.send_message(phone, text, image_url=image_url)
+        if result.get("status") == "success":
+            await log_message("WhatsApp", f"Outbound message sent to {phone}")
+            return result
+        raise HTTPException(status_code=400, detail=result.get("message", "فشل إرسال الرسالة"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"WhatsApp send error: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ في إرسال الرسالة: {str(e)}")
+
+
+@app.post("/api/whatsapp/register-webhook")
+async def register_whatsapp_webhook_endpoint(data: Optional[dict] = None):
+    """Registers the M.A.R.K.E.T webhook URL with OpenWA gateway for automatic incoming message delivery."""
+    try:
+        adapter = get_whatsapp_adapter_instance()
+        default_url = f"{WEBHOOK_URL.replace('/webhook', '')}/api/whatsapp/webhook" if WEBHOOK_URL else f"http://{get_local_ip()}:{settings.port}/api/whatsapp/webhook"
+        target_url = (data or {}).get("webhook_url", default_url)
+        res = await adapter.register_webhook(target_url)
+        await log_message("WhatsApp", f"Registered OpenWA webhook target: {target_url} -> {res.get('status')}")
+        return res
+    except Exception as e:
+        logger.error(f"WhatsApp register webhook error: {e}")
+        raise HTTPException(status_code=500, detail=f"خطأ في تسجيل Webhook: {str(e)}")
+
+
+@app.post("/api/whatsapp/webhook")
+async def receive_whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
+    """Receives incoming event/message webhooks from OpenWA Gateway."""
+    try:
+        raw_body = await request.body()
+        payload = json.loads(raw_body.decode("utf-8"))
+
+        adapter = get_whatsapp_adapter_instance()
+        msg = adapter.parse_webhook_event(payload)
+
+        if msg:
+            background_tasks.add_task(
+                process_whatsapp_message_background,
+                msg.chat_id,
+                msg.text,
+                msg.media_url,
+                msg.message_id
+            )
+            return {"status": "success", "event": "message_queued"}
+
+        return {"status": "success", "event": payload.get("event", "status_processed")}
+    except Exception as e:
+        logger.error(f"WhatsApp webhook processing error: {e}")
+        return JSONResponse(status_code=400, content={"status": "error", "detail": str(e)})
+
+
+async def process_whatsapp_message_background(
+    sender_id: str,
+    message_text: str,
+    image_url: Optional[str],
+    message_id: Optional[str]
+):
+    """Background worker for incoming WhatsApp messages with full AI reply & plugin execution."""
+    try:
+        user_input = message_text or "[صورة / وسائط واتساب]"
+        await log_message("WhatsApp", f"Incoming WhatsApp msg from {sender_id}: {user_input}")
+
+        reply = await process_incoming_message(
+            sender_id=sender_id,
+            message_text=message_text,
+            image_url=image_url,
+            message_id=message_id,
+            channel="whatsapp"
+        )
+        if reply:
+            await log_message("Bot", f"Replied to WhatsApp {sender_id}: {reply[:90]}...")
+    except Exception as e:
+        await log_message("Error", f"WhatsApp message background processing error: {e}")
 
 
 # ---------------- llama.cpp Native Process Control APIs ----------------

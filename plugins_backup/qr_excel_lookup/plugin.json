@@ -1,0 +1,9 @@
+{
+  "id": "qr_excel_lookup",
+  "name": "QR Barcode & Inventory Excel Lookup",
+  "version": "1.0.0",
+  "plugin_type": "domain",
+  "description": "مسح باركود/QR والبحث الفوري في قاعدة بيانات المخزن وحقن التفاصيل",
+  "entrypoint": "adapter.py",
+  "enabled": true
+}

@@ -1,117 +1,140 @@
-# 🚀 M.A.R.K.E.T AI Platform (v2.0 — OmniContext Engine)
+# 🚀 M.A.R.K.E.T AI Platform (v3.0 — IDE & Extension Studio)
 
-> **المواصفات الرسمية لمنصة M.A.R.K.E.T الذكية لخدمة العملاء وأتمتة التجارة الإلكترونية**  
-> **مبني بواسطة محرك OmniContext AI**
-
----
-
-## 📋 نظرة عامة (Overview)
-
-منصة **M.A.R.K.E.T AI 2.0** هي نظام ذكاء اصطناعي متكامل مخصص لإدارة وتسهيل خدمة العملاء للمتاجر الإلكترونية وصفحات التواصل الاجتماعي. يعتمد النظام على محرك **OmniContext AI** الذي يتيح التشغيل المحلي بالكامل دون الاعتماد على الإنترنت (Offline-First) أو الربط مع المزودين السحابيين الأسرع عالمياً.
+> **M.A.R.K.E.T**: **M**ulti-AI **A**utomated **R**esponse & **K**nowledge **E**ngine for **T**rade  
+> *Official Open-Source Documentation for M.A.R.K.E.T AI — Autonomous E-Commerce & Customer Service Engine powered by Omni Engine v3.0*
 
 ---
 
-## ✨ المميزات الرئيسية (Key Features)
+## 📖 English Documentation (Primary)
 
-### 1. 🤖 سلسلة الذكاء الاصطناعي التلقائية (Multi-AI Fallback Chain)
-- **الأولوية التلقائية**: يحاول النظام الاتصال بالخادم المحلي **Ollama** أولاً. وفي حالة عدم توفره أو ضعف عتاد الجهاز، ينتقل تلقائياً وبشكل مرن بدون انقطاع الخدمة إلى:
-  1. `Ollama (Local Models)`
-  2. `Google Gemini 2.5 Flash API`
-  3. `Groq API (Llama 3.3 70B)`
-  4. `OpenAI ChatGPT (GPT-4o Mini)`
-  5. `DeepSeek API (DeepSeek Chat)`
-  6. `Custom OpenAI-compatible Endpoints (OpenRouter / LM Studio)`
+### 🌟 What is M.A.R.K.E.T AI (v3.0)?
 
-### 2. 💬 الربط المتكامل مع فيسبوك ومسنجر (Meta Webhook)
-- **Messenger DMs**: الرد الآلي الودية بالعامية المصرية والتحاور مع العملاء.
-- **Feed Comments**: الرد الآلي التلقائي على التعليقات (رد عام في الكومنت + إرسال التفاصيل والأسعار الكاملة في رسالة خاصة Inbox).
-- **Verify Token & Security**: دعم كامل لتأكيد الـ Webhooks من Meta for Developers.
+**M.A.R.K.E.T** (**M**ulti-AI **A**utomated **R**esponse & **K**nowledge **E**ngine for **T**rade) is an open-source, privacy-first, offline-capable AI infrastructure engineered to automate e-commerce customer service, multi-channel commerce (WhatsApp, Meta Facebook Messenger, TikTok Webhooks), Excel inventory lookups, QR code scanning, and dynamic v3 Extension Studio apps.
 
-### 3. 📊 إدارة المنتجات وشيت الإكسيل (Excel Inventory Engine)
-- **openpyxl Native Engine**: قراءة وتحديث جدول المنتجات فوراً وبشكل خفيف بدون حاجة لمكتبات ثقيلة مثل Pandas/Numpy.
-- **CRUD الكامل**: إضافة، تعديل، حذف، رفع شيت جديد، وتنزيل النموذج التجريبي بنقرة واحدة.
-- **AI Product Code Inference**: استنتاج كود المنتج من وصف العميل (مثل "تيشرت أزرق M") باستخدام الذكاء الاصطناعي مع نظام طوارئ بديل (Rule-based Fallback).
-
-### 4. 📷 مسح أكواد QR والفرز البصري (QR Code Vision)
-- **OpenCV Scanner**: فحص الصور المرفقة في رسائل العملاء لاستخراج كود المنتج المطبوع على QR تلقائياً ومطابقته بالمخزون.
-
-### 5. 🎛️ لوحة تحكم احترافية (M.A.R.K.E.T Dashboard UI)
-- **قائمة جانبية (Sidebar Navigation)**: منيو جانبي استجابي يسهل التنقل بين الأقسام.
-- **دعم الوضعين الليلي والنهاري (Dark & Light Theme Toggle)**: تبديل سلس بين الثيمات مع حفظ التفضيل في المتصفح.
-- **نظام إشعارات التوست (Toast System)**: بديل عصري وتفاعلي لرسائل التنبيه التقليدية.
-- **محاكي الردود (Chat Tester)**: واجهة تجريبية للاختبار السريع قبل تفعيل الصفحة.
-- **السجلات الحية (SSE Live Logs)**: بث مباشر لجميع أحداث الخادم وسجلات الردود.
-- **ربط Ngrok بنقرة واحدة**: إنشاء رابط Webhook عام وسريع بنقرة واحدة.
+Powered natively by the **Omni Engine Core (`omni_engine`)**, M.A.R.K.E.T runs 100% locally on your hardware or connects across the local network to an external Omni Engine server via high-performance OpenAI-compatible REST endpoints.
 
 ---
 
-## 🛠️ البنية البرمجية ومستودع الملفات (Project Structure)
+### ✨ What's New in v3.0
+
+1. **Omni Engine as Primary AI Core**:
+   - **Native Rust Inference**: Fast, low-latency execution via `omni_engine` wrapping `llama.cpp`.
+   - **Remote Host / Network Deployment**: Deploy `omni_engine` on a separate machine or dedicated server and connect M.A.R.K.E.T seamlessly over the network (`custom_ai_url: "http://<REMOTE_IP>:8081/v1"`).
+   - **Multi-Model Concurrency**: Dedicated coding models (Qwen 2.5 Coder) for extension creation run concurrently with customer care conversational models.
+
+2. **v3 Extension Studio & AI Box**:
+   - Built-in IDE with real-time file tree, interactive code editor, and live syntax verification.
+   - **Automated Self-Healing Feedback Loop**: Code generation automatically captures Python syntax errors or JSON formatting issues and prompts the model to self-repair instantly.
+   - Dynamic tab mounting into the main dashboard navigation without restarting the application.
+
+3. **Multi-Channel Commerce Gateway**:
+   - **WhatsApp**: Native OpenWA Gateway integration with session QR code rendering, webhook sync, and purchase confirmation triggers.
+   - **Facebook Messenger & Feed**: Instant comment auto-replies + private DM upsells.
+   - **TikTok Webhooks & QR Scanner**: Multi-platform event listening and barcode/QR catalog lookups.
+
+4. **Multi-AI Fallback Chain**:
+   - **Priority 1**: Omni Engine / Custom Endpoint (`http://localhost:8081/v1` or Remote Host).
+   - **Priority 2**: Local llama-server supervisor auto-detection.
+   - **Priority 3**: Cloud Fallbacks (Google Gemini 2.5 Flash, Groq Llama 3.3 70B, OpenAI GPT-4o Mini, DeepSeek Chat).
+   - **Priority 4**: Deterministic Rule-Based Fallback.
+
+---
+
+### 📁 Project Architecture
 
 ```
-omnicontext_v2/
-├── main.py              # النقطة الرئيسية لتشغيل سيرفر FastAPI والـ APIs
-├── bot_logic.py         # منطق معالجة الرسائل والتعليقات وإدارة المحادثات
-├── ai_provider.py       # محرك الذكاء الاصطناعي وسلسلة الـ Fallback
-├── hardware_detector.py # فحص عتاد الجهاز (RAM, CPU Cores) وترشيح الموديلات
-├── excel_helper.py      # إدارة وتكشير جدول المنتجات (Excel Database)
-├── http_client.py       # إدارة الاتصالات الشبكية (Connection Pooling)
-├── qr_detector.py       # فحص الصور والأكواد التلقائية
-├── settings.py          # إعدادات البيئة ومتغيرات النظام
-├── config.json          # الملف التفاعلي لحفظ إعدادات الداشبورد
-├── products.xlsx        # شيت المنتجات الافتراضي
-├── requirements.txt     # المكتبات والاعتماديات البرمجية
-├── .env.example         # نموذج ملف متغيرات البيئة
-└── static/              # واجهة لوحة التحكم (Frontend)
-    ├── index.html       # هيكل الصفحة والقائمة الجانبية
-    ├── style.css        # التنسيقات والدعم المزدوج للثيمات والأنيميشن
-    └── app.js           # التفاعلات والـ APIs ونظام التوست
+M.A.R.K.E.T/
+├── main.py              # FastAPI Web Server, Webhooks & REST Endpoints (v3.0)
+├── plugin_manager.py    # Dynamic v3 Extension Engine & Router Mounter
+├── ai_provider.py       # Omni Engine Primary Core & Multi-AI Fallback Chain
+├── llamacpp_manager.py  # Local llama-server Process Supervisor
+├── bot_logic.py         # Customer Service Dialog Engine & Context Cache
+├── hardware_detector.py # Hardware Spec Analyzer (RAM & CPU Cores)
+├── excel_helper.py      # openpyxl Inventory Database Engine
+├── http_client.py       # Connection Pooling & Async HTTP Client
+├── qr_detector.py       # OpenCV Image QR Code Reader
+├── settings.py          # Environment Variables & Pydantic Config
+├── config.json          # Live Dashboard Config Storage
+├── products.xlsx        # Default Excel Inventory File
+├── plugins/             # Active v3 Extensions
+│   ├── whatsapp_openwa/     # WhatsApp Gateway Channel Extension
+│   ├── facebook_messenger/  # Facebook Messenger & Feed Extension
+│   ├── tiktok_webhook/      # TikTok Commerce Webhook Extension
+│   └── qr_excel_lookup/     # QR Code Scanner & Inventory Extension
+├── plugins_backup/      # Archived Community & Official Extension Templates
+└── static/              # Modern v3 Single-Page IDE & Dashboard
 ```
 
 ---
 
-## ⚙️ متطلبات التشغيل والتثبيت (Setup & Installation)
-
-### 1. المتطلبات البرمجية
-- **Python 3.10+**
-- **Ollama** (اختياري، للعمل المحلي بدون إنترنت)
-
-### 2. خطوات التثبيت
+### ⚙️ Quick Start & Installation
 
 ```bash
-# 1. الانتقال إلى مجلد المشروع
-cd omnicontext_v2
+# 1. Clone repository
+git clone https://github.com/ielfeqi-rgb/M.A.R.K.E.T.git
+cd M.A.R.K.E.T
 
-# 2. تثبيت الاعتماديات
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. نسخ ملف المتغيرات
-cp .env.example .env
-
-# 4. تشغيل خادم M.A.R.K.E.T
+# 3. Launch M.A.R.K.E.T Server
 python main.py
 ```
 
-بعد التشغيل، يمكنك فتح لوحة التحكم في المتصفح على العنوان:  
-`http://localhost:8000`
+Access the Web Dashboard at: `http://localhost:8000`
 
 ---
 
-## 🌐 ربط فيسبوك (Facebook Webhook Integration)
+### 🌐 Connecting to a Remote Omni Engine
 
-1. اذهب إلى **Meta for Developers** وقم بإنشاء App من نوع `Business`.
-2. أضف منتج **Messenger** و **Webhooks**.
-3. احصل على رابط الـ Webhook من لوحة تحكم M.A.R.K.E.T (باستخدام Ngrok Authtoken).
-4. أدخل رابط الـ Webhook ورقم الـ Verify Token في إعدادات فيسبوك في لوحة التحكم.
-5. قم بتفعيل صلاحيات `messages` و `feed` في إعدادات الاشتراكات بصفحة فيسبوك.
+To run `omni_engine` on a separate server or machine:
+1. Start `omni_engine` on the remote device:
+   ```bash
+   ./omni_engine serve --port 8081
+   ```
+2. In M.A.R.K.E.T `config.json` (or via Dashboard Settings):
+   ```json
+   {
+     "ai_provider": "custom",
+     "custom_ai_url": "http://192.168.1.100:8081/v1",
+     "custom_ai_key": "your_api_key_if_configured"
+   }
+   ```
+M.A.R.K.E.T will route all customer service and extension generation queries directly to the remote Omni Engine instance with zero local CPU overhead.
 
 ---
 
-## 🙏 الإسناد والتقدير (Credits & Acknowledgments)
-- **[llama.cpp](https://github.com/ggerganov/llama.cpp)**: تم تضمين واعتماد ثنائيات محرك التشغيل المحلي المدمج استناداً إلى المشروع مفتوح المصدر الرائد **llama.cpp** للمطور والمبتكر الأصلي **Georgi Gerganov** والمساهمين في مجتمع الذكاء الاصطناعي.
-- **FastAPI / Axum**: محركات البناء والخدمة الشبكية السريعة.
-- **OpenCV**: مكتبة معالجة الرؤية وقراءة أكواد الـ QR الضوئية.
+### 📜 License & Terms of Use
+
+This project is released under the **Non-Commercial Public License (PolyForm NonCommercial 1.0.0 / CC BY-NC-SA 4.0)**:
+
+- **Free for Personal, Educational, and Non-Profit Use**: Individuals, students, researchers, and open-source developers can freely use, modify, and distribute this software for personal or non-profit purposes.
+- **Commercial & Corporate Use Requires Permission**: Commercial businesses, for-profit entities, or individuals utilizing this software for commercial gain must obtain an explicit commercial license from the project owner.
+
+*Copyright (c) 2026 M.A.R.K.E.T AI Systems (OmniContext Engine).*r commercial gain must obtain an explicit commercial license from the project owner.
+
+*Copyright (c) 2026 M.A.R.K.E.T AI Systems (OmniContext Engine).*
 
 ---
 
-## 📑 ترخيص ومشروع M.A.R.K.E.T
-جميع الحقوق محفوظة لمشروع **M.A.R.K.E.T (OmniContext Engine)** © 2026.
+## 📜 التوثيق باللغة العربية (Arabic Summary)
+
+### 🎯 منصة M.A.R.K.E.T AI الإصدار الثالث (v3.0)
+
+منصة **M.A.R.K.E.T AI (v3.0)** هي بنية تحتية متكاملة ومفتوحة المصدر لإدارة التجارة الإلكترونية وأتمتة خدمة العملاء وقنوات البيع المختلفة (واتساب، فيسبوك، تيك توك، إنستجرام)، معتمدة بالكامل على محرك **Omni Engine** المكتوب بلغة Rust.
+
+### 🌟 أبرز التحديثات في الإصدار v3.0:
+1. **محرك Omni Engine كمحرك أساسي**:
+   - يعمل كمحرك ذكاء اصطناعي محلي فائق السرعة مبني بلغة Rust.
+   - إمكانية تشغيله على جهاز آخر في الشبكة وربط السيرفر به عبر الـ API بكل سهولة (`custom_ai_url`).
+2. **استوديو الإضافات v3 والتوليد بالأوامر العامية المباشرة**:
+   - دعم كامل لإنشاء وتعديل الإضافات المتكاملة (Backend + UI + Manifest) عبر الأوامر العامية المباشرة من لوحة التحكم.
+   - نظام **Self-Healing Feedback Loop** لمعالجة الأخطاء البرمجية ذاتياً وإصلاحها تلقائياً بالذكاء الاصطناعي.
+3. **تكامل قنوات المبيعات المتعددة**:
+   - ربط بوابة واتساب الرسمية (OpenWA) ومسح QR Code من لوحة التحكم مباشرة.
+   - دعم ويب هوك تيك توك ومحرك قراءة أكواد QR والباركود وربطها بمخزون الإكسيل.
+
+---
+
+> **M.A.R.K.E.T Systems Documentation © 2026**  
+> *OmniContext AI Core Engineering Team*
