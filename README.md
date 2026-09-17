@@ -1,140 +1,134 @@
-# 🚀 M.A.R.K.E.T AI Platform (v3.0 — IDE & Extension Studio)
+# M.A.R.K.E.T AI Platform (v3.0)
 
-> **M.A.R.K.E.T**: **M**ulti-AI **A**utomated **R**esponse & **K**nowledge **E**ngine for **T**rade  
-> *Official Open-Source Documentation for M.A.R.K.E.T AI — Autonomous E-Commerce & Customer Service Engine powered by Omni Engine v3.0*
-
----
-
-## 📖 English Documentation (Primary)
-
-### 🌟 What is M.A.R.K.E.T AI (v3.0)?
-
-**M.A.R.K.E.T** (**M**ulti-AI **A**utomated **R**esponse & **K**nowledge **E**ngine for **T**rade) is an open-source, privacy-first, offline-capable AI infrastructure engineered to automate e-commerce customer service, multi-channel commerce (WhatsApp, Meta Facebook Messenger, TikTok Webhooks), Excel inventory lookups, QR code scanning, and dynamic v3 Extension Studio apps.
-
-Powered natively by the **Omni Engine Core (`omni_engine`)**, M.A.R.K.E.T runs 100% locally on your hardware or connects across the local network to an external Omni Engine server via high-performance OpenAI-compatible REST endpoints.
+> **M.A.R.K.E.T**: Modular Automated Response & Knowledge Engine for Trade  
+> Autonomous E-Commerce & Customer Service Infrastructure powered by Omni Engine.
 
 ---
 
-### ✨ What's New in v3.0
+## English Documentation
 
-1. **Omni Engine as Primary AI Core**:
-   - **Native Rust Inference**: Fast, low-latency execution via `omni_engine` wrapping `llama.cpp`.
-   - **Remote Host / Network Deployment**: Deploy `omni_engine` on a separate machine or dedicated server and connect M.A.R.K.E.T seamlessly over the network (`custom_ai_url: "http://<REMOTE_IP>:8081/v1"`).
-   - **Multi-Model Concurrency**: Dedicated coding models (Qwen 2.5 Coder) for extension creation run concurrently with customer care conversational models.
+### Overview
 
-2. **v3 Extension Studio & AI Box**:
-   - Built-in IDE with real-time file tree, interactive code editor, and live syntax verification.
-   - **Automated Self-Healing Feedback Loop**: Code generation automatically captures Python syntax errors or JSON formatting issues and prompts the model to self-repair instantly.
-   - Dynamic tab mounting into the main dashboard navigation without restarting the application.
+**M.A.R.K.E.T** is an open-source, offline-first AI infrastructure designed to automate e-commerce operations, customer communications, inventory querying, and runtime extension deployment.
 
-3. **Multi-Channel Commerce Gateway**:
-   - **WhatsApp**: Native OpenWA Gateway integration with session QR code rendering, webhook sync, and purchase confirmation triggers.
-   - **Facebook Messenger & Feed**: Instant comment auto-replies + private DM upsells.
-   - **TikTok Webhooks & QR Scanner**: Multi-platform event listening and barcode/QR catalog lookups.
-
-4. **Multi-AI Fallback Chain**:
-   - **Priority 1**: Omni Engine / Custom Endpoint (`http://localhost:8081/v1` or Remote Host).
-   - **Priority 2**: Local llama-server supervisor auto-detection.
-   - **Priority 3**: Cloud Fallbacks (Google Gemini 2.5 Flash, Groq Llama 3.3 70B, OpenAI GPT-4o Mini, DeepSeek Chat).
-   - **Priority 4**: Deterministic Rule-Based Fallback.
+Powered natively by the **Omni Engine Core (`omni_engine`)**, the platform runs completely on local hardware or connects across a private network to a dedicated inference node using standard OpenAI-compatible REST endpoints.
 
 ---
 
-### 📁 Project Architecture
+### Core Capabilities in v3.0
+
+1. **Omni Engine as Primary AI Core**
+   - **Native Rust Inference**: Fast, predictable execution leveraging `omni_engine` built over `llama.cpp`.
+   - **Distributed & Remote Setup**: Deploy `omni_engine` on an independent GPU/CPU server on your LAN, routing queries with zero local overhead (`custom_ai_url: "http://<REMOTE_IP>:8081/v1"`).
+   - **Multi-Model Isolation**: Independent routing for programming tasks (Qwen 2.5 Coder) and customer conversations without state collisions.
+
+2. **v3 Extension Studio & Automated Verification**
+   - Integrated development workspace featuring live file inspection, syntax checks, and router mounting.
+   - **Self-Healing Feedback Loop**: Automatically captures syntax and schema exceptions during generation, prompting immediate automated correction.
+   - Dynamic tab registration into the control dashboard without restarting services.
+
+3. **Multi-Channel Integrations**
+   - **WhatsApp**: Direct integration via OpenWA Gateway with on-screen QR session pairing, automated webhooks, and purchase confirmations.
+   - **Facebook Messenger & Comments**: Automated public comment replies and private inbox routing.
+   - **TikTok & Barcode Vision**: Webhook listeners and computer vision QR/barcode inventory verification.
+
+4. **Reliability Fallback Hierarchy**
+   - **Level 1**: Omni Engine / Custom Endpoint (Local or Network Host).
+   - **Level 2**: Embedded Process Supervisor.
+   - **Level 3**: Managed Cloud APIs (Google Gemini, Groq, OpenAI, DeepSeek).
+   - **Level 4**: Deterministic Rule Engine ensuring continuous uptime.
+
+---
+
+### Repository Structure
 
 ```
 M.A.R.K.E.T/
-├── main.py              # FastAPI Web Server, Webhooks & REST Endpoints (v3.0)
-├── plugin_manager.py    # Dynamic v3 Extension Engine & Router Mounter
-├── ai_provider.py       # Omni Engine Primary Core & Multi-AI Fallback Chain
-├── llamacpp_manager.py  # Local llama-server Process Supervisor
-├── bot_logic.py         # Customer Service Dialog Engine & Context Cache
-├── hardware_detector.py # Hardware Spec Analyzer (RAM & CPU Cores)
-├── excel_helper.py      # openpyxl Inventory Database Engine
-├── http_client.py       # Connection Pooling & Async HTTP Client
-├── qr_detector.py       # OpenCV Image QR Code Reader
-├── settings.py          # Environment Variables & Pydantic Config
-├── config.json          # Live Dashboard Config Storage
-├── products.xlsx        # Default Excel Inventory File
-├── plugins/             # Active v3 Extensions
-│   ├── whatsapp_openwa/     # WhatsApp Gateway Channel Extension
-│   ├── facebook_messenger/  # Facebook Messenger & Feed Extension
-│   ├── tiktok_webhook/      # TikTok Commerce Webhook Extension
-│   └── qr_excel_lookup/     # QR Code Scanner & Inventory Extension
-├── plugins_backup/      # Archived Community & Official Extension Templates
-└── static/              # Modern v3 Single-Page IDE & Dashboard
+├── main.py              # Application server, REST endpoints, and webhook routing
+├── plugin_manager.py    # Runtime extension loader and dynamic router mount
+├── ai_provider.py       # Inference client layer and fallback orchestration
+├── llamacpp_manager.py  # Local server process supervisor
+├── bot_logic.py         # Conversational routing, session context, and templates
+├── hardware_detector.py # Hardware profile and memory diagnostic utilities
+├── excel_helper.py      # Inventory spreadsheet read/write manager
+├── http_client.py       # Shared asynchronous HTTP connection pool
+├── qr_detector.py       # Computer vision barcode and QR decoding
+├── settings.py          # Environment configuration models
+├── config.json          # Persistent runtime configuration
+├── products.xlsx        # Default catalog dataset
+├── plugins/             # Active v3 production extensions
+│   ├── whatsapp_openwa/     # WhatsApp integration extension
+│   ├── facebook_messenger/  # Meta Messenger & Feed extension
+│   ├── tiktok_webhook/      # TikTok commerce webhook handler
+│   └── qr_excel_lookup/     # Inventory lookup and barcode scanner
+├── plugins_backup/      # Extension templates and archived modules
+└── static/              # Compiled single-page IDE and dashboard interface
 ```
 
 ---
 
-### ⚙️ Quick Start & Installation
+### Quick Start
 
 ```bash
-# 1. Clone repository
+# Clone the repository
 git clone https://github.com/ielfeqi-rgb/M.A.R.K.E.T.git
 cd M.A.R.K.E.T
 
-# 2. Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
 
-# 3. Launch M.A.R.K.E.T Server
+# Start the application server
 python main.py
 ```
 
-Access the Web Dashboard at: `http://localhost:8000`
+Open the dashboard in your browser: `http://localhost:8000`
 
 ---
 
-### 🌐 Connecting to a Remote Omni Engine
+### Distributed Deployment (Remote Omni Engine)
 
-To run `omni_engine` on a separate server or machine:
-1. Start `omni_engine` on the remote device:
+To offload AI inference to a dedicated node:
+1. Start `omni_engine` on the target machine:
    ```bash
    ./omni_engine serve --port 8081
    ```
-2. In M.A.R.K.E.T `config.json` (or via Dashboard Settings):
+2. Set the target endpoint in M.A.R.K.E.T (`config.json` or Dashboard Settings):
    ```json
    {
      "ai_provider": "custom",
      "custom_ai_url": "http://192.168.1.100:8081/v1",
-     "custom_ai_key": "your_api_key_if_configured"
+     "custom_ai_key": "optional_auth_key"
    }
    ```
-M.A.R.K.E.T will route all customer service and extension generation queries directly to the remote Omni Engine instance with zero local CPU overhead.
+All conversational and code generation tasks will route to the remote server automatically.
 
 ---
 
-### 📜 License & Terms of Use
+### License
 
-This project is released under the **Non-Commercial Public License (PolyForm NonCommercial 1.0.0 / CC BY-NC-SA 4.0)**:
-
-- **Free for Personal, Educational, and Non-Profit Use**: Individuals, students, researchers, and open-source developers can freely use, modify, and distribute this software for personal or non-profit purposes.
-- **Commercial & Corporate Use Requires Permission**: Commercial businesses, for-profit entities, or individuals utilizing this software for commercial gain must obtain an explicit commercial license from the project owner.
-
-*Copyright (c) 2026 M.A.R.K.E.T AI Systems (OmniContext Engine).*r commercial gain must obtain an explicit commercial license from the project owner.
-
-*Copyright (c) 2026 M.A.R.K.E.T AI Systems (OmniContext Engine).*
+This software is distributed under the **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**:
+- Permitted for personal, educational, and non-commercial evaluation.
+- Commercial production deployments require authorization from the author.
 
 ---
 
-## 📜 التوثيق باللغة العربية (Arabic Summary)
+## التوثيق باللغة العربية (Arabic Documentation)
 
-### 🎯 منصة M.A.R.K.E.T AI الإصدار الثالث (v3.0)
+### نظرة عامة
 
-منصة **M.A.R.K.E.T AI (v3.0)** هي بنية تحتية متكاملة ومفتوحة المصدر لإدارة التجارة الإلكترونية وأتمتة خدمة العملاء وقنوات البيع المختلفة (واتساب، فيسبوك، تيك توك، إنستجرام)، معتمدة بالكامل على محرك **Omni Engine** المكتوب بلغة Rust.
+منصة **M.A.R.K.E.T (v3.0)** هي بنية تحتية برمجية مفتوحة المصدر لإدارة التجارة الإلكترونية، وأتمتة الرد على العملاء عبر قنوات البيع الرقمية، وإدارة المخزون والتطوير البرمجي للإضافات، مدعومة بمحرك **Omni Engine**.
 
-### 🌟 أبرز التحديثات في الإصدار v3.0:
-1. **محرك Omni Engine كمحرك أساسي**:
-   - يعمل كمحرك ذكاء اصطناعي محلي فائق السرعة مبني بلغة Rust.
-   - إمكانية تشغيله على جهاز آخر في الشبكة وربط السيرفر به عبر الـ API بكل سهولة (`custom_ai_url`).
-2. **استوديو الإضافات v3 والتوليد بالأوامر العامية المباشرة**:
-   - دعم كامل لإنشاء وتعديل الإضافات المتكاملة (Backend + UI + Manifest) عبر الأوامر العامية المباشرة من لوحة التحكم.
-   - نظام **Self-Healing Feedback Loop** لمعالجة الأخطاء البرمجية ذاتياً وإصلاحها تلقائياً بالذكاء الاصطناعي.
-3. **تكامل قنوات المبيعات المتعددة**:
-   - ربط بوابة واتساب الرسمية (OpenWA) ومسح QR Code من لوحة التحكم مباشرة.
-   - دعم ويب هوك تيك توك ومحرك قراءة أكواد QR والباركود وربطها بمخزون الإكسيل.
+### الخصائص الرئيسية في الإصدار v3.0:
+1. **الاعتماد على محرك Omni Engine**:
+   - محرك استدلال محلي عالي الكفاءة مجمع بلغة Rust.
+   - دعم التوزيع الشبكي لتشغيل المحرك على خادم مستقل والربط معه عبر الـ API (`custom_ai_url`).
+2. **استوديو الإضافات ونظام التصحيح الذاتي**:
+   - بيئة تطوير متكاملة لكتابة واختبار الإضافات بالواجهة والـ Backend.
+   - نظام **Self-Healing Feedback Loop** للتحقق من سلامة الكود وإصلاح الأخطاء البرمجية تلقائياً.
+3. **التكامل مع قنوات التواصل**:
+   - دعم رسمي لبوابة واتساب ومسح رمز الـ QR مباشرة من اللوحة.
+   - دعم تكامل فيسبوك ماسنجر والتعليقات وويب هوك تيك توك ومطابقة المخزون.
 
 ---
 
-> **M.A.R.K.E.T Systems Documentation © 2026**  
-> *OmniContext AI Core Engineering Team*
+> **M.A.R.K.E.T AI Systems — 2026**
