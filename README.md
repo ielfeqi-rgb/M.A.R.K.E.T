@@ -1,3 +1,7 @@
+<p align="right">
+  <b><a href="./README_ar.md">🇸🇦 العربية</a></b> | <b>🇬🇧 English</b>
+</p>
+
 # M.A.R.K.E.T
 
 **Modular Automated Response & Knowledge Engine for Trade**
