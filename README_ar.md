@@ -1,5 +1,5 @@
 <p align="left">
-  <b><a href="./README.md">🇬🇧 English</a></b> | <b>🇸🇦 العربية</b>
+  <a href="./README.md">English</a> | <a href="./README_ar.md">العربية</a>
 </p>
 
 # منصة M.A.R.K.E.T
@@ -7,11 +7,17 @@
 **Modular Automated Response & Knowledge Engine for Trade**  
 *(المحرك النمطي المؤتمت للاستجابة والمعرفة في التجارة الإلكترونية)*
 
+[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Release](https://img.shields.io/github/v/release/ielfeqi-rgb/M.A.R.K.E.T?style=flat-square&color=orange)](https://github.com/ielfeqi-rgb/M.A.R.K.E.T/releases)
+[![License](https://img.shields.io/badge/License-PolyForm%20NonCommercial-green?style=flat-square)](./LICENSE)
+
 خادم أتمتة تجاري ذاتي الاستضافة (Self-Hosted) واستوديو تطوير مرئي لإدارة المحادثات وخدمة العملاء متعددة القنوات (واتساب، فيسبوك ماسنجر، تيك توك) وتدقيق المخزون.
 
 ---
 
-## 🏗️ نظرة عامة على معمارية النظام (Architecture Overview)
+## معمارية النظام (Architecture Overview)
 
 تجمع منصة M.A.R.K.E.T بين خادم خلفي غير متزامن فائق السرعة مبني بـ FastAPI ومحرك برمجة مرئي مستوحى من بيئة Scratch 3.0، لتمكين فرق العمل والمتاجر من أتمتة خدمة العملاء واستعلامات المخزون وتوجيه الطلبات بأقل مجهود تشغيلي.
 
@@ -30,7 +36,7 @@
 
 ---
 
-## ⚡ المكونات الأساسية (Core Components)
+## المكونات الأساسية (Core Components)
 
 - **استوديو التدفقات المرئية (Visual Workflow Builder):** بناء شجرات المحادثات ومنطق الردود بالسحب والإفلات للبلوكات التفاعلية، والتي يتم ترجمتها آلياً إلى كود بايثون حقيقي قابل للتنفيذ.
 - **محولات القنوات الموحدة (Multi-Channel Adapters):**
@@ -43,7 +49,7 @@
 
 ---
 
-## 🚀 البدء السريع (Getting Started)
+## دليل البدء والتشغيل (Getting Started)
 
 ### المتطلبات الأساسية
 
@@ -77,7 +83,7 @@
 
 ---
 
-## 🚢 النشر في بيئات الإنتاج (Production Deployment)
+## النشر في بيئات الإنتاج (Production Deployment)
 
 ### الخيار الأول: عبر Docker Compose (الأسهل والأكثر استقراراً)
 
@@ -96,7 +102,7 @@ sudo ./deploy.sh
 
 ---
 
-## 📁 هيكلية المشروع (Project Structure)
+## هيكلية المشروع (Project Structure)
 
 ```
 M.A.R.K.E.T/
@@ -124,7 +130,7 @@ M.A.R.K.E.T/
 
 ---
 
-## 🤝 شكر وتقدير للمصادر المفتوحة (Open Source Credits)
+## شكر وتقدير للمصادر المفتوحة (Open Source Credits)
 
 يقوم هذا المشروع على جهود مجتمع البرمجيات الحرة ومفتوحة المصدر. نتوجه بالشكر والتقدير للمطورين والمؤسسات التالية:
 
@@ -144,7 +150,7 @@ M.A.R.K.E.T/
 
 ---
 
-## 📜 الترخيص وشروط الاستخدام (License)
+## الترخيص وشروط الاستخدام (License)
 
 هذا المشروع مرخص بموجب رخصة **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
 الاستخدام مجاني ومتاح للأغراض الشخصية والتعليمية وغير الربحية والمفتوحة المصدر.

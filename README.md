@@ -1,10 +1,16 @@
 <p align="right">
-  <b><a href="./README_ar.md">🇸🇦 العربية</a></b> | <b>🇬🇧 English</b>
+  <a href="./README_ar.md">العربية</a> | <a href="./README.md">English</a>
 </p>
 
 # M.A.R.K.E.T
 
 **Modular Automated Response & Knowledge Engine for Trade**
+
+[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Release](https://img.shields.io/github/v/release/ielfeqi-rgb/M.A.R.K.E.T?style=flat-square&color=orange)](https://github.com/ielfeqi-rgb/M.A.R.K.E.T/releases)
+[![License](https://img.shields.io/badge/License-PolyForm%20NonCommercial-green?style=flat-square)](./LICENSE)
 
 An extensible, self-hosted commerce automation server and visual workflow studio for multi-channel sales (WhatsApp, Facebook Messenger, TikTok) and inventory management.
 
