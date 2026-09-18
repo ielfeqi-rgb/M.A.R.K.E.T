@@ -81,6 +81,120 @@ class ExcelCache:
                 return True
             return False
 
+    def search_product_fuzzy(self, user_query: str, min_threshold: float = 0.55) -> Dict[str, Any]:
+        """
+        Real multi-attribute fuzzy search against Excel catalog.
+        Computes mathematical similarity score across Name, Code, Color, Size, and Description.
+        Returns: {
+            "product": Dict or None,
+            "confidence": float,
+            "matched_by": str,
+            "exact_code_match": bool,
+            "stock_available": bool
+        }
+        """
+        import difflib
+        import re
+
+        with self._lock:
+            if self._cache is None or (time.time() - self._last_load > self.reload_interval):
+                if not self.reload():
+                    return {"product": None, "confidence": 0.0, "matched_by": "none", "exact_code_match": False, "stock_available": False}
+
+            def normalize_ar(text: str) -> str:
+                if not text:
+                    return ""
+                text = str(text).lower().strip()
+                # Normalize common eCommerce spelling variations
+                text = text.replace("تيشيرت", "تيشرت").replace("سويت شيرت", "سويتشرت")
+                text = re.sub(r'[إأآا]', 'ا', text)
+                text = re.sub(r'ة', 'ه', text)
+                text = re.sub(r'ى', 'ي', text)
+                text = re.sub(r'[^\w\s]', ' ', text)
+                words = []
+                for w in text.split():
+                    # Strip leading 'ال' for root comparison if word length > 3
+                    if w.startswith("ال") and len(w) > 3:
+                        w = w[2:]
+                    words.append(w)
+                return " ".join(words)
+
+            clean_query = normalize_ar(user_query)
+            
+            # Common conversational filler words in Egyptian customer support inquiries
+            stopwords = {"السلام", "عليكم", "ورحمه", "الله", "وبركاته", "ازيك", "يا", "فندم", "لو", "سمحت", "بكام", "سعر", "كام", "عايز", "عاوز", "عاوزه", "ممكن", "تفاصيل", "في", "من", "علي", "عندكم", "موجود"}
+            meaningful_query_tokens = set([w for w in clean_query.split() if w not in stopwords])
+            if not meaningful_query_tokens:
+                meaningful_query_tokens = set(clean_query.split())
+
+            best_match = None
+            best_score = 0.0
+            best_match_by = "none"
+            exact_match = False
+
+            for code, product in self._cache.items():
+                norm_code = normalize_ar(code)
+                norm_name = normalize_ar(product.get("اسم المنتج", ""))
+                norm_color = normalize_ar(product.get("اللون", ""))
+                norm_size = normalize_ar(product.get("المقاس", ""))
+                norm_desc = normalize_ar(product.get("الوصف", ""))
+
+                # 1. Exact Code Match (Confidence 1.0)
+                if norm_code and (norm_code == clean_query or norm_code in meaningful_query_tokens):
+                    best_match = product
+                    best_score = 1.0
+                    best_match_by = f"exact_code:{code}"
+                    exact_match = True
+                    break
+
+                # 2. Token Matching on meaningful product attributes
+                all_product_text = f"{norm_name} {norm_color} {norm_size} {norm_desc}"
+                product_tokens = set(all_product_text.split())
+
+                # Intersection over meaningful query tokens
+                overlap = meaningful_query_tokens.intersection(product_tokens)
+                token_recall = len(overlap) / max(len(meaningful_query_tokens), 1)
+
+                # Attribute bonuses: Color match and Size match
+                color_bonus = 0.25 if norm_color and norm_color in meaningful_query_tokens else 0.0
+                size_bonus = 0.20 if norm_size and norm_size in meaningful_query_tokens else 0.0
+
+                # Name sequence match
+                name_tokens = set(norm_name.split())
+                name_overlap = meaningful_query_tokens.intersection(name_tokens)
+                name_score = len(name_overlap) / max(len(name_tokens), 1)
+
+                # Composite score
+                composite_score = round(min(1.0, (token_recall * 0.50) + (name_score * 0.30) + color_bonus + size_bonus), 3)
+
+                if composite_score > best_score:
+                    best_score = composite_score
+                    best_match = product
+                    best_match_by = f"fuzzy_composite:{composite_score}"
+
+            # Check threshold
+            if best_score < min_threshold:
+                return {
+                    "product": None,
+                    "confidence": best_score,
+                    "matched_by": "below_threshold",
+                    "exact_code_match": False,
+                    "stock_available": False
+                }
+
+            # Check stock availability
+            qty_raw = str(best_match.get("الكمية المتاحة", "0")).strip()
+            stock_qty = int(qty_raw) if qty_raw.isdigit() else 1
+            stock_available = stock_qty > 0
+
+            return {
+                "product": best_match,
+                "confidence": best_score,
+                "matched_by": best_match_by,
+                "exact_code_match": exact_match,
+                "stock_available": stock_available
+            }
+
     def get_product(self, code: str) -> Optional[Dict[str, Any]]:
         with self._lock:
             if self._cache is None or (time.time() - self._last_load > self.reload_interval):

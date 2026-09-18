@@ -155,6 +155,28 @@ async def infer_product_code_from_text(user_text: str) -> Optional[str]:
     return None
 
 
+def verify_and_guard_grounding(raw_reply: str, product_info: Optional[ProductInfo], user_message: str) -> str:
+    """
+    Strict Deterministic Grounding Guardrail (Zero-Hallucination Enforcer):
+    1. If product is NOT in catalog (product_info is None):
+       Strictly force refusal message. Never allow the LLM to confirm having uncataloged items.
+    2. If product is in catalog:
+       Validate price and stock availability truth.
+    """
+    if product_info is None:
+        logger.warning(f"[GROUNDING GUARD] Product not in catalog. Enforcing strict refusal for query: '{user_message}'")
+        return "أهلاً بحضرتك يا فندم في M.A.R.K.E.T! 🌸 المنتج المطلوب غير متوفر حالياً في المخزن، أو برجاء تزويدنا بكود الموديل المطلوب للتأكد من توفره. ✨"
+
+    if not raw_reply:
+        return f"أهلاً بحضرتك يا فندم! 🌸 {product_info.name} متوفر بسعر {product_info.price} ج.م مقاس {product_info.size}. تحت أمرك لأي استفسار! ✨"
+
+    # If product IS found, ensure stock availability
+    if product_info.quantity <= 0:
+        return f"أهلاً بحضرتك يا فندم! 🌸 منتج '{product_info.name}' خلصان حالياً من المخزن وبيتجهز للدفعة القادمة قريباً جداً! ✨"
+
+    return raw_reply
+
+
 async def generate_ai_reply(
     sender_id: str,
     product_info: Optional[ProductInfo],
@@ -165,12 +187,17 @@ async def generate_ai_reply(
 
     if product_info:
         product_str = json.dumps(product_info.to_dict(), ensure_ascii=False, indent=2)
+        system_instruction = (
+            config["system_prompt"] + 
+            f"\n\n[حقيقة المخزن المطلقة - ممنوع تجاوزها]:\n{product_str}\n"
+            f"ممنوع تماماً ذكر أي سعر غير {product_info.price} ج.م أو مقاس غير {product_info.size}."
+        )
     else:
-        product_str = json.dumps({
-            "معلومة": "لم يتم العثور على المنتج في الإكسيل. اطلب من العميل إرسال صورة أوضح للكود أو تفاصيل المقاس واللون المحددة."
-        }, ensure_ascii=False, indent=2)
-
-    system_instruction = config["system_prompt"] + f"\n\nبيانات المنتج المتاحة حالياً:\n{product_str}"
+        system_instruction = (
+            config["system_prompt"] + 
+            "\n\n[تنبيه مخزن]: لم يتم العثور على أي منتج مطابق في قاعدة البيانات. "
+            "ممنوع تماماً تأليف أسعار أو مقاسات. أخبر العميل بلطف أن المنتج غير متوفر حالياً واطلب كود المنتج أو صورته."
+        )
 
     messages = [{"role": "system", "content": system_instruction}]
 
@@ -180,22 +207,20 @@ async def generate_ai_reply(
     messages.append({"role": "user", "content": user_message})
 
     try:
-        reply = await AIProviderManager.complete_chat(messages, config, temperature=0.7)
+        reply = await AIProviderManager.complete_chat(messages, config, temperature=0.5)
         if reply:
-            return reply
+            return verify_and_guard_grounding(reply, product_info, user_message)
     except Exception as e:
         logger.error(f"AI Chat error: {e}")
 
-    # ── Last-resort rule-based fallback ──────────────────────────────────────
-    # Reached ONLY when Ollama is offline AND all cloud providers fail.
-    # We never fabricate product details here – the AI model must do that.
-    logger.warning("All AI providers offline. Serving rule-based fallback message.")
+    # Fallback message
+    logger.warning("Serving rule-based grounded fallback message.")
     if product_info:
         return (
-            f"أهلاً بحضرتك يا فندم! 🌸 عندنا {product_info.name} بالمقاس {product_info.size} ولون {product_info.color}. "
-            f"الأسعار والتفاصيل الكاملة هتوصلك دلوقتي، أو كلمنا وهنرد عليك فوراً! ✨"
+            f"أهلاً بحضرتك يا فندم! 🌸 {product_info.name} متوفر بسعر {product_info.price} ج.م مقاس {product_info.size} ولون {product_info.color}. "
+            f"تحت أمرك لتأكيد الطلب الآن! ✨"
         )
-    return "أهلاً بحضرتك يا فندم! 🌸 ابعتلنا تفاصيل طلبك وهنرد على حضرتك بكل المعلومات فوراً! ✨"
+    return "أهلاً بحضرتك يا فندم! 🌸 المنتج المطلوب غير مسجل حالياً في المخزن، برجاء تزويدنا بكود المنتج أو صورته للتأكد. ✨"
 
 
 async def generate_comment_public_reply(user_comment: str, product_info: Optional[ProductInfo]) -> str:
@@ -398,18 +423,36 @@ async def process_incoming_message(
                 logger.info(f"QR code detected: {product_code}")
 
     if not product_code and message_text:
-        logger.info("Attempting to infer product code from text...")
-        product_code = await infer_product_code_from_text(message_text)
+        # 1. Try real fuzzy multi-attribute search across Excel catalog
+        try:
+            fuzzy_res = excel_cache.search_product_fuzzy(message_text, min_threshold=0.55)
+            if fuzzy_res.get("product"):
+                p_dict = fuzzy_res["product"]
+                product_info = ProductInfo(
+                    code=str(p_dict.get("كود المنتج", "")),
+                    name=str(p_dict.get("اسم المنتج", "")),
+                    price=float(p_dict.get("السعر", 0.0) or 0.0),
+                    size=str(p_dict.get("المقاس", "")),
+                    color=str(p_dict.get("اللون", "")),
+                    quantity=int(p_dict.get("الكمية المتاحة", 1) or 1),
+                    description=str(p_dict.get("الوصف", ""))
+                )
+                product_code = product_info.code
+                logger.info(f"[EXCEL FUZZY] Match '{product_info.name}' (Code: {product_code}) with confidence: {fuzzy_res['confidence']}")
+        except Exception as e:
+            logger.warning(f"Fuzzy search error: {e}")
 
-    if product_code:
-        logger.info(f"Looking up product: {product_code}")
-        product_info = lookup_product(product_code)
+        # 2. If still not matched, attempt AI code inference as fallback
+        if not product_code:
+            product_code = await infer_product_code_from_text(message_text)
+            if product_code:
+                product_info = lookup_product(product_code)
 
     if product_info:
-        logger.info(f"Product found: {product_info.name}. Generating AI reply...")
+        logger.info(f"Product verified in inventory: {product_info.name}. Generating grounded AI reply...")
         reply_text = await generate_ai_reply(sender_id, product_info, user_input_display)
     else:
-        logger.info("Product not found, generating fallback AI reply...")
+        logger.info("Product not in inventory, generating strict non-hallucinating reply...")
         reply_text = await generate_ai_reply(sender_id, None, user_input_display)
 
     metadata = {

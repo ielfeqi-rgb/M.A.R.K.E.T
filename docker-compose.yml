@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # ── Core Backend Engine (M.A.R.K.E.T AI) ───────────────────────────
+  market-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: market-ai-core
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config.json:/app/config.json
+      - ./products.xlsx:/app/products.xlsx
+      - ./plugins:/app/plugins
+      - ./static:/app/static
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    depends_on:
+      - openwa
+    networks:
+      - market-net
+
+  # ── WhatsApp OpenWA Gateway (Self-Hosted WhatsApp Web Bot) ──────────
+  openwa:
+    image: openwa/wa-automate:latest
+    container_name: market-whatsapp-gateway
+    restart: unless-stopped
+    ports:
+      - "2785:2785"
+    environment:
+      - PORT=2785
+      - POPUP=false
+    volumes:
+      - wa-sessions:/sessions
+    networks:
+      - market-net
+
+networks:
+  market-net:
+    driver: bridge
+
+volumes:
+  wa-sessions:

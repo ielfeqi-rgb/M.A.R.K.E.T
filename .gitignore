@@ -1,7 +1,50 @@
-__pycache__/
-*.pyc
-*.gguf
-venv/
-.env
-/target/
+# =====================================================================
+# M.A.R.K.E.T AI - Git Ignore Rules
+# =====================================================================
 
+# Environment & Secrets (NEVER COMMIT)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+
+# Python & Virtual Environments
+venv/
+env/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Rust / Cargo artifacts
+/target/
+Cargo.lock.bak
+
+# Node & Frontend (if building locally)
+node_modules/
+.npm
+dist/
+.vite/
+
+# Database & Runtime Data
+*.sqlite3
+*.db-journal
+*.log
+logs/
+sessions/
+wa-sessions/
+.openwa/
+
+# OS & Editor Artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~

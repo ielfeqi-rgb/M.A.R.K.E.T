@@ -416,9 +416,10 @@ class AIProviderManager:
             "stop": ["```\n\n", "User:", "<|im_end|>", "### Explanation", "### شرح"]
         }
 
+        timeout_val = 5.0 if ("localhost" in base_url or "127.0.0.1" in base_url) else 30.0
         try:
             client = await AIProviderManager._get_client()
-            resp = await client.post(url, headers=headers, json=payload, timeout=120.0)
+            resp = await client.post(url, headers=headers, json=payload, timeout=timeout_val)
             if resp.status_code == 200:
                 data = resp.json()
                 choices = data.get("choices", [])
