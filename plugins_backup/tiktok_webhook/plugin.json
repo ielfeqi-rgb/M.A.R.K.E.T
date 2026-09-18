@@ -1,9 +1,0 @@
-{
-  "id": "tiktok_webhook",
-  "name": "TikTok Shop Webhook Adapter",
-  "version": "1.0.0",
-  "plugin_type": "channel",
-  "description": "معالجة استفسارات TikTok Shop ورسائل المتابعين في بايثون",
-  "entrypoint": "adapter.py",
-  "enabled": true
-}

@@ -1,87 +1,147 @@
-# M.A.R.K.E.T AI Platform (v3.5.0)
+# M.A.R.K.E.T
 
-> **M.A.R.K.E.T**: Modular Automated Response & Knowledge Engine for Trade  
-> Autonomous E-Commerce, Multi-Channel Commerce & CRM Engine with Visual Scratch Workflow Studio and DevOps Observability.
+**Modular Automated Response & Knowledge Engine for Trade**
 
----
-
-## 📖 English Documentation
-
-### Overview
-
-**M.A.R.K.E.T** is an open-source, offline-first AI infrastructure designed to automate e-commerce operations, customer communications (WhatsApp, Facebook Messenger, TikTok), inventory querying, and visual workflow automation.
-
-The platform runs completely on local hardware (Ollama / Llama.cpp) or connects seamlessly to high-speed cloud providers (Google Gemini, Groq, OpenAI, DeepSeek).
+An extensible, self-hosted commerce automation server and visual workflow studio for multi-channel sales (WhatsApp, Facebook Messenger, TikTok) and inventory management.
 
 ---
 
-### Core Capabilities in v3.5.0
+## Architecture Overview
 
-1. **Scratch Visual Workflow Studio (Node & Block Architecture)**
-   - Drag-and-drop conversational block editor inspired by Scratch 3.0.
-   - Live Python code generation directly from visual event trees.
-   - Built-in AI Coder assistance (Qwen 2.5 Coder) for generating custom logic.
+M.A.R.K.E.T combines an asynchronous FastAPI backend with a visual Scratch-like workflow engine to let teams automate customer support, stock queries, and order routing with minimal setup.
 
-2. **Backend Mission Control & Observability Dashboard**
-   - Real-time diagnostics for CPU, Memory, Active Connections, and Storage.
-   - Instant WhatsApp QR Code generator with live countdown and fallback pairing engine.
-   - Direct IDE integration links (`vscode://`) for instant file editing (`config.json`, `products.xlsx`, `plugins/`, `bin/`).
-
-3. **Multi-Channel Integrations**
-   - **WhatsApp**: Seamless OpenWA integration with on-screen QR canvas pairing, webhook support, and automated purchase confirmations.
-   - **Facebook Messenger & Comments**: Automated public comment replies and private inbox routing.
-   - **TikTok & Vision Barcode**: Automated webhook listeners and barcode/QR catalog lookup.
-
-4. **Multi-AI Fallback & Zero-Hallucination Grounding**
-   - **Level 1**: Local Models (Qwen 2.5, Llama 3.2 via Ollama or custom endpoint).
-   - **Level 2**: High-Speed Cloud APIs (Google Gemini 2.5 Flash, Groq, OpenAI, DeepSeek).
-   - **Level 3**: Deterministic Rule Engine ensuring continuous 99.9% uptime.
-   - Strict data grounding against Excel (`products.xlsx`) and SQLite databases to prevent hallucination.
-
-5. **Production IT & DevOps Suite**
-   - Complete containerization via Docker & `docker-compose.yml`.
-   - Native Linux Systemd service unit (`market-ai.service`).
-   - Nginx Reverse Proxy template with SSL and WebSocket support (`nginx.conf.example`).
-   - Automated deployment and start scripts (`start.sh`, `deploy.sh`).
-   - Comprehensive deployment guide ([`IT_DEPLOYMENT_GUIDE.md`](file:///home/hema/Downloads/files%281%29/M.A.R.K.E.T/IT_DEPLOYMENT_GUIDE.md)).
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        M.A.R.K.E.T Architecture                        │
+├──────────────────────────┬─────────────────────────────────────────────┤
+│ Frontend Studio          │ Visual Block Editor (Scratch paradigm)      │
+│ Backend Server           │ FastAPI (ASGI / Python 3.12+)               │
+│ Messaging Gateways       │ WhatsApp (OpenWA), Meta Messenger, Webhooks │
+│ Data Grounding           │ Excel (openpyxl) & SQLite (market.db)       │
+│ AI Inference Layer       │ Local (Llama.cpp / Ollama) + Cloud API      │
+│ Deployment Targets       │ Docker, Docker Compose, Linux Systemd       │
+└──────────────────────────┴─────────────────────────────────────────────┘
+```
 
 ---
 
-### Quick Start
+## Core Components
+
+- **Visual Workflow Builder**: Build conversation trees and logic flows visually using drag-and-drop event blocks, which compile directly into executable Python code.
+- **Multi-Channel Adapters**:
+  - **WhatsApp**: OpenWA gateway integration with instant QR canvas pairing and automated order confirmations.
+  - **Facebook & Instagram**: Messenger webhook listener, auto-reply to public comments and direct inbox messaging.
+  - **TikTok & Webhooks**: Inbound payload parser for order notifications.
+- **Inventory & Grounding Engine**: Real-time product search with Arabic natural-language token matching against `products.xlsx` and SQLite databases to prevent model hallucination.
+- **Inference Pipeline**: Configurable fallback chain prioritizing local offline models (`Qwen 2.5`, `Llama 3.2`) with optional routing to Google Gemini, Groq, or OpenAI.
+- **DevOps & Observability**: Real-time CPU, RAM, active connections, and latency metrics with pre-configured Docker Compose, Systemd unit, and Nginx reverse proxy templates.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10+ (Python 3.12 recommended)
+- `pip` and `venv`
+- Docker & Docker Compose (optional, for containerized deployment)
+
+### Quick Start (Local)
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/ielfeqi-rgb/M.A.R.K.E.T.git
+   cd M.A.R.K.E.T
+   ```
+
+2. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env to add your preferred API keys and settings
+   ```
+
+3. Run the automated startup script:
+   ```bash
+   chmod +x start.sh
+   ./start.sh
+   ```
+
+4. Open the dashboard in your browser:
+   - **Mission Control & Diagnostics**: [http://localhost:8000](http://localhost:8000)
+   - **Interactive API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+## Production Deployment
+
+### Option A: Docker Compose (Recommended)
 
 ```bash
-# Clone the repository
-git clone https://github.com/ielfeqi-rgb/M.A.R.K.E.T.git
-cd M.A.R.K.E.T
-
-# Method 1: Using Start Script (Native venv)
-chmod +x start.sh
-./start.sh
-
-# Method 2: Using Docker Compose
+cp .env.example .env
 docker-compose up -d --build
 ```
 
-Access the Mission Control Dashboard at `http://localhost:8000`  
-Explore the Interactive API Documentation at `http://localhost:8000/docs`
+### Option B: Linux Systemd (VPS / Bare-Metal)
+
+```bash
+sudo ./deploy.sh
+```
+
+For detailed production instructions including Nginx reverse proxy configuration and SSL setup with Let's Encrypt, see [`IT_DEPLOYMENT_GUIDE.md`](./IT_DEPLOYMENT_GUIDE.md).
 
 ---
 
-## 📜 التوثيق باللغة العربية (Arabic Documentation)
+## Project Structure
 
-### نظرة عامة
-منصة **M.A.R.K.E.T (v3.5.0)** هي بنية تحتية برمجية مفتوحة المصدر لإدارة التجارة الإلكترونية، وأتمتة خدمة العملاء عبر قنوات البيع الرقمية (واتساب، فيسبوك، تيك توك)، وإدارة المخزون والتطوير المرئي للإضافات عبر استوديو بلوكات سكراتش.
-
-### أبرز المميزات في الإصدار v3.5.0:
-1. **استوديو سكراتش للبرمجة المرئية**: تصميم تدفقات المحادثات بالسحب والإفلات وتوليد كود Python حقيقي مع دعم المبرمج الذكي (Qwen 2.5 Coder).
-2. **لوحة التحكم والمراقبة التشخيصية**: فحص حي للموارد، استخراج QR الواتساب المباشر، وروابط تشغيل الملفات من محررك البرمجي.
-3. **جاهزية الـ IT والنشر الفوري**: دعم دوكر، Systemd، Nginx، وسكريبتات نشر مؤتمتة بضغطة زر واحدة.
+```
+M.A.R.K.E.T/
+├── main.py                 # FastAPI application entrypoint & REST routers
+├── scratch_engine.py       # Visual block-to-code compiler engine
+├── bot_logic.py            # Customer support dialogue logic and routing
+├── ai_provider.py          # Unified client for local and cloud AI providers
+├── excel_helper.py         # In-memory spreadsheet indexing and fuzzy search
+├── plugin_manager.py       # Dynamic plugin loader and runtime registry
+├── config.json             # Runtime configuration file
+├── products.xlsx           # Product catalog dataset
+├── plugins/                # Modular channel adapters and extensions
+│   ├── whatsapp_openwa/    # WhatsApp integration
+│   ├── facebook_messenger/ # Meta Messenger integration
+│   ├── tiktok_webhook/     # TikTok webhook handler
+│   └── qr_excel_lookup/    # QR barcode inventory lookup
+├── Dockerfile              # Production container build
+├── docker-compose.yml      # Multi-service stack (Core + WhatsApp Gateway)
+├── market-ai.service       # Linux Systemd unit template
+├── nginx.conf.example      # Nginx reverse proxy template
+├── start.sh                # Local launch script
+├── deploy.sh               # Production deployment script
+└── static/                 # Dashboard and studio web assets
+```
 
 ---
 
-### 📜 License & Terms of Use
+## Open Source Credits & Acknowledgments
 
-Distributed under the **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
-Free for personal, educational, and open-source non-profit use.
+This project is built on the shoulders of giants. We gratefully acknowledge and credit the creators and maintainers of the following open-source technologies:
 
-*Copyright (c) 2026 M.A.R.K.E.T AI Systems.*
+| Project | Author / Organization | Description / Role |
+| :--- | :--- | :--- |
+| **[FastAPI](https://fastapi.tiangolo.com/)** | Sebastián Ramírez ([@tiangolo](https://github.com/tiangolo)) | High-performance asynchronous web framework |
+| **[Uvicorn](https://www.uvicorn.org/)** | Encode OSS | Lightning-fast ASGI web server |
+| **[Scratch](https://scratch.mit.edu/)** | MIT Media Lab | Visual block-based programming paradigm inspiration |
+| **[OpenWA / WPPConnect](https://github.com/open-wa/wa-automate-nodejs)** | Mohammed Shah & Community | Headless WhatsApp Web automation gateway |
+| **[llama.cpp](https://github.com/ggerganov/llama.cpp)** | Georgi Gerganov & Contributors | Efficient local LLM inference in C/C++ |
+| **[Qwen Models](https://github.com/QwenLM/Qwen2.5)** | Alibaba Cloud / Qwen Team | Qwen 2.5 & Qwen 2.5 Coder foundation models |
+| **[Llama](https://github.com/meta-llama/llama3)** | Meta AI | Llama 3 open foundation models |
+| **[openpyxl](https://openpyxl.readthedocs.io/)** | Eric Gazoni, Charlie Clark | Pure-Python Excel spreadsheet manipulation |
+| **[Pydantic](https://docs.pydantic.dev/)** | Samuel Colvin & Contributors | Data validation and settings management |
+| **[Lucide Icons](https://lucide.dev/)** | Lucide Project | Clean and consistent UI iconography |
+| **[Tailwind CSS](https://tailwindcss.com/)** | Tailwind Labs | Utility-first CSS framework |
+
+---
+
+## License
+
+This project is licensed under the **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
+Free for personal, educational, and open-source non-commercial use.
+
+For commercial licenses, please contact the project owner.

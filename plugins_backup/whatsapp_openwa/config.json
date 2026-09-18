@@ -1,7 +1,0 @@
-{
-  "whatsapp_openwa_url": "http://localhost:2785",
-  "whatsapp_openwa_api_key": "",
-  "whatsapp_session_id": "market-v3-bot",
-  "whatsapp_auto_reply": true,
-  "whatsapp_send_purchase_confirmation": true
-}

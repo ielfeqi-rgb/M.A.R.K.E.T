@@ -1,9 +1,0 @@
-{
-  "id": "real_estate_calc",
-  "name": "Real Estate Loan & Timeline Calculator",
-  "version": "1.0.0",
-  "plugin_type": "domain",
-  "description": "حساب الأقساط والتمويل العقاري ومواعيد التسليم وحقن السجلات المحدثة",
-  "entrypoint": "adapter.lua",
-  "enabled": true
-}
