@@ -272,6 +272,8 @@ class ExtensionEngineV3:
         if entry_file.exists() and entry_file.suffix == ".py":
             try:
                 mod_name = f"plugins.{ext.dir_path.name}.{entry_file.stem}"
+                if mod_name in sys.modules:
+                    sys.modules.pop(mod_name, None)
                 spec = importlib.util.spec_from_file_location(mod_name, entry_file)
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
@@ -318,13 +320,15 @@ class ExtensionEngineV3:
         """Mount all extension APIRouters dynamically into the main FastAPI application."""
         for ext_id, ext in self.extensions.items():
             if ext.router:
-                prefix = f"/ext/{ext_id}"
+                r_prefix = getattr(ext.router, "prefix", "")
+                if r_prefix.startswith(f"/ext/{ext_id}"):
+                    mount_prefix = ""
+                else:
+                    mount_prefix = f"/ext/{ext_id}"
+
                 try:
-                    # Check if already included
-                    already_mounted = any(getattr(r, "path", "").startswith(prefix) for r in app.routes)
-                    if not already_mounted:
-                        app.include_router(ext.router, prefix=prefix, tags=[ext.name])
-                        logger.info(f"[ExtensionEngineV3] Mounted routes for '{ext_id}' at '{prefix}'")
+                    app.include_router(ext.router, prefix=mount_prefix)
+                    logger.info(f"[ExtensionEngineV3] Mounted routes for '{ext_id}' (Prefix: {mount_prefix or r_prefix})")
                 except Exception as e:
                     logger.error(f"[ExtensionEngineV3] Failed to mount router for '{ext_id}': {e}")
 

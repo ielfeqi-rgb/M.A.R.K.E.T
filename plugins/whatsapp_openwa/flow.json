@@ -1,0 +1,35 @@
+[
+  {
+    "id": "node_1",
+    "type": "trigger_whatsapp",
+    "title": "عند استلام رسالة واتساب (WhatsApp)",
+    "fields": {
+      "channel": "واتساب (WhatsApp)"
+    }
+  },
+  {
+    "id": "node_2",
+    "type": "data_stock_guard",
+    "title": "حارس نفاذ المخزون (Stock Guard)",
+    "fields": {
+      "policy": "التحقق من المخزون"
+    }
+  },
+  {
+    "id": "node_3",
+    "type": "ai_tone_reply",
+    "title": "صياغة الرد الذكي المؤصل (Omni AI Core)",
+    "fields": {
+      "tone": "عامية مصرية ودية ولطيفة"
+    },
+    "customPrompt": "رد بذوق وتأكد من توفر المنتج"
+  },
+  {
+    "id": "node_4",
+    "type": "control_dispatch_reply",
+    "title": "إرسال الرد للعميل (Channel Send)",
+    "fields": {
+      "speed": "فوري"
+    }
+  }
+]

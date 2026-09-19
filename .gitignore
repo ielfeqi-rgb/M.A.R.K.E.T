@@ -34,8 +34,14 @@ dist/
 
 # Database & Runtime Data
 *.sqlite3
+*.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.log
+*.local.txt
+*.local.md
+SESSION_HANDOVER*
 logs/
 sessions/
 wa-sessions/

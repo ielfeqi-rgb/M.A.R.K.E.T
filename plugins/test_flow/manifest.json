@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "id": "test_flow",
+  "name": "Test Flow",
+  "version": "1.0.0",
+  "description": "إضافة مخصصة تم تصميمها وترجمتها عبر Qwen 2.5 Coder",
+  "author": "M.A.R.K.E.T Scratch Studio",
+  "icon": "code",
+  "entrypoint": "backend.py",
+  "permissions": [
+    "network",
+    "ai",
+    "webhooks"
+  ],
+  "enabled": true,
+  "routes": {
+    "prefix": "/ext/test_flow",
+    "webhooks": [
+      "/webhook",
+      "/execute"
+    ]
+  }
+}

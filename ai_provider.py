@@ -8,6 +8,10 @@ from http_client import AsyncHTTPClient
 
 logger = logging.getLogger(__name__)
 
+# Concurrency & Backpressure Guard: Limits simultaneous local model inference
+# Prevents Linux OOM Killer and CPU thread starvation on edge devices
+_INFERENCE_SEMAPHORE = asyncio.Semaphore(2)
+
 
 class AIProviderManager:
     """
@@ -306,11 +310,12 @@ class AIProviderManager:
         }
 
         try:
-            client = await AIProviderManager._get_client()
-            resp = await client.post(url, json=payload, timeout=15.0)
-            if resp.status_code == 200:
-                data = resp.json()
-                return data.get("message", {}).get("content", "").strip()
+            async with _INFERENCE_SEMAPHORE:
+                client = await AIProviderManager._get_client()
+                resp = await client.post(url, json=payload, timeout=15.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get("message", {}).get("content", "").strip()
         except Exception as e:
             logger.debug(f"Ollama local not reachable: {e}")
         return None
@@ -417,9 +422,16 @@ class AIProviderManager:
         }
 
         timeout_val = 5.0 if ("localhost" in base_url or "127.0.0.1" in base_url) else 30.0
+        is_local = "localhost" in base_url or "127.0.0.1" in base_url or "8081" in base_url
+
         try:
             client = await AIProviderManager._get_client()
-            resp = await client.post(url, headers=headers, json=payload, timeout=timeout_val)
+            if is_local:
+                async with _INFERENCE_SEMAPHORE:
+                    resp = await client.post(url, headers=headers, json=payload, timeout=timeout_val)
+            else:
+                resp = await client.post(url, headers=headers, json=payload, timeout=timeout_val)
+
             if resp.status_code == 200:
                 data = resp.json()
                 choices = data.get("choices", [])
@@ -530,3 +542,16 @@ class AIProviderManager:
             "• ملاحظة: تثبيت Ollama يتيح العمل بدون إنترنت نهائياً."
         )
         return {"status": "failed", "error": err_msg, "provider": selected, "all_results": results}
+
+
+async def complete_chat(messages: List[Dict[str, str]], config: Optional[Dict[str, Any]] = None, temperature: float = 0.7) -> str:
+    """Convenience top-level async helper for plugins and scratch pipelines."""
+    if config is None:
+        try:
+            from bot_logic import load_config
+            config = load_config()
+        except Exception:
+            config = {}
+    res = await AIProviderManager.complete_chat(messages, config, temperature=temperature)
+    return res or "أهلاً بك! نسعد بخدمتك دائماً."
+

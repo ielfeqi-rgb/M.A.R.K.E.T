@@ -254,6 +254,19 @@ def discover_dynamic_blocks() -> List[Dict[str, Any]]:
     blocks = list(CORE_BLOCKS)
     known_plugin_ids = {b.get("plugin_id") for b in blocks if b.get("plugin_id")}
 
+    # 1. Discover user-created AI Custom Blocks
+    custom_blocks_file = PLUGINS_DIR / "custom_blocks.json"
+    if custom_blocks_file.exists():
+        try:
+            cblocks = json.loads(custom_blocks_file.read_text(encoding="utf-8"))
+            if isinstance(cblocks, list):
+                for cb in cblocks:
+                    cb_copy = dict(cb)
+                    cb_copy["is_custom_ai"] = True
+                    blocks.append(cb_copy)
+        except Exception as e:
+            pass
+
     if not PLUGINS_DIR.exists():
         return blocks
 
@@ -338,13 +351,17 @@ def compile_flow_to_python(flow_blocks: List[Dict[str, Any]], extension_id: str 
         '',
     ]
 
-    has_sql = any(b.get("category") == "data" and "sql" in b.get("id", "") for b in flow_blocks)
-    has_telegram = any("telegram" in b.get("id", "") for b in flow_blocks)
+    has_sql = any(
+        (b.get("category") == "data") or 
+        any(k in (b.get("type") or b.get("blockId") or b.get("id", "")) for k in ("sql", "lookup", "excel", "data"))
+        for b in flow_blocks
+    )
+    has_telegram = any("telegram" in (b.get("type") or b.get("blockId") or b.get("id", "")) for b in flow_blocks)
 
     if has_sql:
         lines.extend([
             'import sqlite3',
-            'DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "market.db")',
+            'DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "market_edge.db")',
             '',
             'def query_database(query: str, params: tuple = ()):',
             '    try:',
@@ -392,80 +409,142 @@ def compile_flow_to_python(flow_blocks: List[Dict[str, Any]], extension_id: str 
 
     step_num = 1
     for b in flow_blocks:
-        b_id = b.get("id", "")
-        fields = b.get("values", {})
+        b_id = b.get("type") or b.get("blockId") or b.get("id", "")
+        fields = b.get("values") or b.get("fields", {})
+        custom_prompt = b.get("customPrompt") or fields.get("rule_description", "")
+        block_title = b.get("name") or b.get("title", b_id)
 
-        lines.append(f'    # Step {step_num}: [{b.get("name", b_id)}]')
+        lines.append(f'    # Step {step_num}: [{block_title}]')
 
-        if b_id == "whatsapp_on_message":
+        if custom_prompt:
+            lines.append(f'    # Custom Rule / Note: {custom_prompt}')
+
+        if b_id in ("whatsapp_on_message", "trigger_whatsapp"):
             lines.append('    phone_number = context.get("phone", context.get("sender", "unknown"))')
             lines.append('    incoming_text = context.get("text", context.get("message", ""))')
-            lines.append('    execution_log.append(f"Received WhatsApp message from {phone_number}")')
+            lines.append('    execution_log.append(f"Received WhatsApp message from {phone_number}: {incoming_text}")')
 
-        elif b_id == "messenger_on_message":
+        elif b_id in ("fork_parallel", "router_branch"):
+            lines.append('    # Parallel Fork / Broadcast: Broadcast message to parallel branch workers')
+            lines.append('    execution_log.append("Fork: Dispatched message concurrently to SQL Engine & Human CS Pool")')
+
+        elif b_id in ("human_cs_handover", "message_pool"):
+            p_val = fields.get("priority", "normal")
+            d_val = fields.get("department", "Customer Support Team")
+            lines.append('    # Human CS Message Pool Handover')
+            lines.append(f'    priority = "{p_val}"')
+            lines.append(f'    dept = "{d_val}"')
+            lines.append(f'    execution_log.append(f"Handover: Logged message in Human Team Pool ({{dept}}) with priority {{priority}}")')
+
+        elif b_id in ("messenger_on_message", "trigger_facebook"):
             lines.append('    sender_id = context.get("sender_id", context.get("sender", "unknown"))')
             lines.append('    incoming_text = context.get("text", context.get("message", ""))')
-            lines.append('    execution_log.append(f"Received Messenger message from {sender_id}")')
+            lines.append('    execution_log.append(f"Received Messenger message from {sender_id}: {incoming_text}")')
 
         elif b_id == "it_on_error":
             lines.append('    error_msg = context.get("error", "Internal System Exception")')
             lines.append('    execution_log.append(f"Captured IT System Error: {error_msg}")')
 
-        elif b_id == "sql_product_lookup":
-            table = fields.get("table_name", "products")
-            lines.append(f'    # SQL Grounding: fetch product price & stock')
-            lines.append(f'    search_term = context.get("incoming_text", "")')
+        elif b_id in ("sql_product_lookup", "data_sql_lookup", "data_excel_lookup"):
+            table = fields.get("table", fields.get("table_name", "products"))
+            lines.append(f'    # SQL Grounding: fetch product price & stock from {table}')
+            lines.append('    search_term = context.get("incoming_text", "")')
             lines.append(f'    db_records = query_database("SELECT name, price, stock FROM {table} WHERE name LIKE ? LIMIT 3", (f"%{{search_term}}%",))')
             lines.append('    context["sql_products"] = db_records')
-            lines.append('    execution_log.append(f"Grounding SQL: Found {len(db_records)} records")')
+            lines.append('    execution_log.append(f"Grounding SQL: Found {len(db_records)} matching products")')
 
-        elif b_id == "maps_competitor_fetch":
-            radius = fields.get("radius_km", 3)
-            lines.append(f'    # Geo Scraper Grounding: Search competitors within {radius}km')
-            lines.append('    context["competitors"] = [')
-            lines.append('        {"name": "منافس تجاري 1", "distance": "0.8 كم", "pricing": "متوسط", "rating": 4.3},')
-            lines.append('        {"name": "منافس تجاري 2", "distance": "1.5 كم", "pricing": "مرتفع", "rating": 4.6}')
-            lines.append('    ]')
-            lines.append('    execution_log.append("Found " + str(len(context.get("competitors", []))) + " local competitors")')
+        elif b_id == "data_stock_guard":
+            lines.append('    # Stock Guard: Check if available in inventory')
+            lines.append('    products_found = context.get("sql_products", [])')
+            lines.append('    in_stock = any(p[2] > 0 for p in products_found) if products_found else True')
+            lines.append('    context["in_stock"] = in_stock')
+            lines.append('    if not in_stock:')
+            lines.append('        context["stock_status"] = "out_of_stock"')
+            lines.append('        execution_log.append("Stock Guard: Product is currently out of stock. Applying apology rule.")')
+            lines.append('    else:')
+            lines.append('        execution_log.append("Stock Guard: Product available in stock.")')
 
-        elif b_id == "ai_customer_reply":
+        elif b_id == "offer_multi_discount":
+            discount = fields.get("discount", "15%")
+            lines.append(f'    # Offers & Discount Rule: {discount}')
+            lines.append(f'    context["applicable_discount"] = "{discount}"')
+            lines.append(f'    execution_log.append("Applied Multi-piece Discount Rule: {discount}")')
+
+        elif b_id in ("ai_customer_reply", "ai_tone_reply"):
             tone = fields.get("tone", "عامية مصرية ودودة ولائقة")
             lines.append('    # AI Synthesis: Strict prompt with SQL facts')
             lines.append(f'    system_prompt = "أنت موظف خدمة عملاء محترف في متجرنا. تحدث بـ {tone}.\\n"')
             lines.append('    system_prompt += "قاعدة بيانات المتجر (حقيقة مطلقة): " + str(context.get("sql_products", "لا توجد منتجات مطابقة")) + "\\n"')
+            if custom_prompt:
+                lines.append(f'    system_prompt += "قاعدة إضافية من المدير: {custom_prompt}\\n"')
             lines.append('    system_prompt += "تعليمات صارمة: لا تبتكر أسعاراً من خيالك مطلقاً، والتزم بالأرقام الموجودة في بيانات المتجر أعلاه."')
             lines.append('    user_message = context.get("incoming_text", "مرحبا")')
-            lines.append('    ai_reply = complete_chat([')
+            lines.append('    ai_reply = await complete_chat([')
             lines.append('        {"role": "system", "content": system_prompt},')
             lines.append('        {"role": "user", "content": user_message}')
             lines.append('    ])')
             lines.append('    context["ai_reply"] = ai_reply')
             lines.append('    execution_log.append("Generated grounded customer reply via Omni AI")')
 
-        elif b_id == "ai_competitor_strategy":
-            lines.append('    # AI Strategy: Analyze competitor gap without hallucination')
-            lines.append('    system_prompt = "أنت مستشار استراتيجي للتجارة. حلل بيانات المنافسين وضع خطة للتفوق."')
-            lines.append('    user_data = "بيانات المنافسين: " + str(context.get("competitors")) + "\\nبياناتنا: " + str(context.get("sql_products"))')
-            lines.append('    strategy_text = complete_chat([')
-            lines.append('        {"role": "system", "content": system_prompt},')
-            lines.append('        {"role": "user", "content": user_data}')
-            lines.append('    ])')
-            lines.append('    context["strategy_report"] = strategy_text')
-            lines.append('    execution_log.append("Generated competitor strategy plan via Omni AI")')
+        elif b_id == "custom_qwen_rule":
+            lines.append('    # Custom Qwen Rule execution')
+            lines.append(f'    rule_text = "{custom_prompt or fields.get("rule_description", "")}"')
+            lines.append('    context["custom_rules"] = context.get("custom_rules", []) + [rule_text]')
+            lines.append(f'    execution_log.append(f"Evaluated Custom Qwen Rule: {{rule_text}}")')
 
-        elif b_id == "whatsapp_send_action":
-            lines.append('    # Output Action: Send via WhatsApp')
-            lines.append('    recipient = context.get("phone_number", "unknown")')
+        elif b_id in ("whatsapp_send_action", "control_dispatch_reply"):
+            lines.append('    # Output Action: Send via channel')
+            lines.append('    recipient = context.get("phone_number", context.get("sender_id", "unknown"))')
             lines.append('    message_to_send = context.get("ai_reply", "شكراً لتواصلك معنا")')
-            lines.append('    execution_log.append("Dispatched reply to WhatsApp: " + str(recipient))')
+            lines.append('    execution_log.append("Dispatched reply: " + str(recipient))')
 
-        elif b_id == "telegram_it_alert_action":
+        elif b_id in ("telegram_it_alert_action", "sensing_telegram_alert"):
             t_token = fields.get("bot_token", "")
             t_chat = fields.get("chat_id", "")
-            lines.append('    # Output Action: Telegram IT Alert')
-            lines.append('    alert_text = "🚨 تنبيه IT من M.A.R.K.E.T:\\nالخطأ: " + str(context.get("error_msg", "System event"))')
+            lines.append('    # Output Action: Telegram Alert')
+            lines.append('    alert_text = "🚨 تنبيه من M.A.R.K.E.T:\\n" + str(context.get("ai_reply", context.get("incoming_text", "Event captured")))')
             lines.append(f'    send_telegram_alert("{t_token}", "{t_chat}", alert_text)')
-            lines.append('    execution_log.append("Dispatched IT alert to Telegram")')
+            lines.append('    execution_log.append("Dispatched alert to Telegram")')
+
+        elif b_id.startswith("custom_") or b.get("isCustomQwen") or b.get("is_custom_ai"):
+            # Dynamic Handling for AI-Synthesized Custom Nodes
+            if "file_path" in fields:
+                f_path = fields.get("file_path", "products.xlsx")
+                s_name = fields.get("sheet_name", "Sheet1")
+                t_col = fields.get("target_column", "code")
+                lines.append(f'    # Custom Step: External Excel / Data Matcher ({block_title})')
+                lines.append(f'    excel_path = "{f_path}"')
+                lines.append('    if not os.path.exists(excel_path):')
+                lines.append('        alt_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), excel_path)')
+                lines.append('        if os.path.exists(alt_path): excel_path = alt_path')
+                lines.append('        elif os.path.exists("products.xlsx"): excel_path = "products.xlsx"')
+                lines.append('    incoming_msg = str(context.get("incoming_text", context.get("message", "")))')
+                lines.append('    matched_row = None')
+                lines.append('    try:')
+                lines.append('        import pandas as pd')
+                lines.append('        df = pd.read_excel(excel_path) if excel_path.endswith((".xlsx", ".xls")) else pd.read_csv(excel_path)')
+                lines.append(f'        target_col = "{t_col}" if "{t_col}" in df.columns else df.columns[0]')
+                lines.append('        matches = df[df[target_col].astype(str).str.strip().str.lower().apply(lambda c: c in incoming_msg.lower() if c else False)]')
+                lines.append('        if not matches.empty:')
+                lines.append('            matched_row = matches.iloc[0].to_dict()')
+                lines.append('    except Exception as e_exc:')
+                lines.append('        logger.warning(f"Excel Match error: {e_exc}")')
+                lines.append('    context["excel_matched_row"] = matched_row')
+                lines.append('    context["is_matched"] = matched_row is not None')
+                lines.append('    execution_log.append(f"Excel Match: {\'Found matching row in \' + str(excel_path) if matched_row else \'No matching code in \' + str(excel_path)}")')
+
+            elif "target_codes" in fields:
+                t_codes = [c.strip() for c in fields.get("target_codes", "").split(",") if c.strip()]
+                lines.append(f'    # Custom Step: Promo Code Exact Matcher ({block_title})')
+                lines.append(f'    valid_codes = {json.dumps(t_codes)}')
+                lines.append('    incoming_msg = str(context.get("incoming_text", context.get("message", ""))).lower()')
+                lines.append('    is_code_valid = any(code.lower() in incoming_msg for code in valid_codes)')
+                lines.append('    context["is_code_valid"] = is_code_valid')
+                lines.append('    execution_log.append(f"Promo Code Check: {\'Valid code applied\' if is_code_valid else \'No valid promo code found\'}")')
+
+            else:
+                lines.append(f'    # Custom AI Node: {block_title}')
+                lines.append(f'    execution_log.append("Executed custom node: {block_title}")')
 
         else:
             lines.append(f'    execution_log.append("Executed {b_id}")')
@@ -596,58 +675,70 @@ def get_default_flow_for_extension(extension_id: str) -> List[Dict[str, Any]]:
         ]
 
 
-def generate_pipeline_with_ai(pipeline_data: dict, extension_id: str = "custom_extension") -> str:
+async def compile_scratch_flow_with_ai(flow_blocks: List[Dict[str, Any]], extension_id: str = "custom_flow", custom_intent: str = "") -> str:
     """
-    Sends the 4-step pipeline specification (Trigger, Data Grounding, AI Logic, Dispatch)
-    and user custom Arabic notes to Qwen 2.5 Coder to generate complete, clean,
-    production-ready Python code for backend.py.
+    Visual-to-Code Compiler powered by AI Coder (Qwen 2.5 Coder / Active AI).
+    Takes arbitrary sequence of Scratch blocks and compiles them into a complete,
+    clean, executable Python FastAPI plugin module.
     """
-    from ai_provider import complete_chat
+    from ai_provider import AIProviderManager
+    from bot_logic import load_config
 
-    trigger_step = pipeline_data.get("trigger", {})
-    data_step = pipeline_data.get("data", {})
-    ai_step = pipeline_data.get("ai", {})
-    dispatch_step = pipeline_data.get("dispatch", {})
+    config = load_config()
 
-    prompt = f"""You are Qwen 2.5 Coder, an expert Python backend engineer for M.A.R.K.E.T v3.
-Your task is to write the complete, clean, executable Python file `backend.py` for extension `{extension_id}`.
+    # 1. Build structured semantic flow description from visual blocks
+    steps_description = []
+    for idx, b in enumerate(flow_blocks, 1):
+        b_title = b.get("title", b.get("name", "كتلة برمجية"))
+        b_cat = b.get("category", "general")
+        fields = b.get("fields", b.get("values", {}))
+        custom_prompt = b.get("customPrompt", "")
+        
+        step_desc = f"Step {idx} [{b_cat.upper()}]: {b_title}"
+        if fields:
+            step_desc += f"\n   - Settings/Parameters: {json.dumps(fields, ensure_ascii=False)}"
+        if custom_prompt:
+            step_desc += f"\n   - Custom User Rule/Instruction: \"{custom_prompt}\""
+        steps_description.append(step_desc)
 
-[PIPELINE ARCHITECTURE SPECIFICATION]:
-1. INGEST / TRIGGER:
-   - Source Channel: {trigger_step.get('channel', 'whatsapp')}
-   - User Intent & Trigger Rules: {trigger_step.get('notes', 'Receive incoming message')}
+    flow_summary = "\n\n".join(steps_description) if steps_description else "Direct custom flow based on user intent."
 
-2. DATA GROUNDING / SQL (Zero Hallucination):
-   - Data Source: {data_step.get('source', 'SQL database (market.db)')}
-   - Required Data & Rules: {data_step.get('notes', 'Query product prices and stock')}
+    prompt = f"""You are Qwen 2.5 Coder, an expert Python backend engineer for the M.A.R.K.E.T platform.
+Your job is to act as the Visual Scratch Compiler: take the following block-by-block visual flow designed by the user, and write the complete, clean, production-ready Python plugin file `adapter.py` / `backend.py` for extension `{extension_id}`.
 
-3. AI REASONING / OMNI CORE:
-   - AI Role / Task: {ai_step.get('role', 'Customer Care & Sales')}
-   - User Custom Prompt & Rules: {ai_step.get('notes', 'Polite Egyptian Arabic, strictly follow SQL facts')}
+[VISUAL SCRATCH FLOW SEQUENCE]:
+{flow_summary}
 
-4. DISPATCH / OUTPUT ACTION:
-   - Destination: {dispatch_step.get('destination', 'Reply via same channel')}
-   - Action Details: {dispatch_step.get('notes', 'Send message back to user')}
+[OVERALL USER INTENT / OBJECTIVE]:
+{custom_intent or "Automate customer inquiries, verify stock with zero hallucination, and dispatch replies."}
 
-[TECHNICAL REQUIREMENTS]:
-- Output ONLY valid, executable Python code inside a ```python ``` block.
-- Create an APIRouter with prefix `/ext/{extension_id}` and tags [`{extension_id}`].
-- Provide an endpoint `/webhook` or `/execute` or appropriate route matching the source channel.
-- Implement strict database queries to SQLite `market.db` (zero hallucination).
-- Call `ai_provider.complete_chat` with strict grounding system prompt.
-- Handle exceptions cleanly and return standard JSON response.
-- Do NOT truncate code, write full implementations.
+[TECHNICAL & ARCHITECTURAL GUIDELINES]:
+1. Framework: Python 3.12+ with FastAPI.
+2. Router: Provide `router = APIRouter(prefix="/ext/{extension_id}", tags=["{extension_id}"])`.
+3. Database & Grounding: Use `from database import db` to query `market_edge.db` (products/orders) with zero hallucination.
+4. AI Completion: Use `from ai_provider import AIProviderManager` for any conversational text generation or persona reasoning.
+5. Endpoints: Implement `@router.post("/execute")` or appropriate webhook handler.
+6. Error Handling: Include try/except blocks and log execution steps.
+7. Return Format: Output ONLY valid, clean Python code inside a ```python ``` code block. Do NOT truncate or use placeholders.
 """
 
-    response = complete_chat([
-        {"role": "system", "content": "You are Qwen 2.5 Coder. Write production-ready, clean Python code adhering strictly to the user's pipeline architecture without any fluff."},
+    messages = [
+        {"role": "system", "content": "You are Qwen 2.5 Coder. You translate visual Scratch flows into clean, robust, production Python backend code with zero placeholders."},
         {"role": "user", "content": prompt}
-    ])
+    ]
 
-    code = response.strip()
-    if "```python" in code:
-        code = code.split("```python", 1)[1].split("```", 1)[0].strip()
-    elif "```" in code:
-        code = code.split("```", 1)[1].split("```", 1)[0].strip()
+    try:
+        response = await AIProviderManager.complete_coder(messages, config, temperature=0.2)
+        if not response:
+            # Fallback to deterministic compilation if AI coder is unreachable
+            return compile_flow_to_python(flow_blocks, extension_id)
 
-    return code
+        code = response.strip()
+        if "```python" in code:
+            code = code.split("```python", 1)[1].split("```", 1)[0].strip()
+        elif "```" in code:
+            code = code.split("```", 1)[1].split("```", 1)[0].strip()
+        return code
+    except Exception as e:
+        logger.error(f"AI Coder compilation error: {e}")
+        return compile_flow_to_python(flow_blocks, extension_id)

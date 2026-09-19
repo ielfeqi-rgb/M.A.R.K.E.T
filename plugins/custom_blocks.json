@@ -1,0 +1,158 @@
+[
+  {
+    "id": "custom_فاحصأكوادالخصم_1789842455",
+    "name": "فاحص أكواد الخصم",
+    "description": "عايز البلوك يكون في مربع لادخال كود من رموز وارقام ولما تولس رساله من البلوك القابلو يفحص هل فياي كلمه شبه الاكواد الكتب",
+    "category": "offers",
+    "color": "#10B981",
+    "icon": "Tag",
+    "fields": [
+      {
+        "key": "target_codes",
+        "label": "أكواد الخصم / الرموز المعتمدة",
+        "type": "code",
+        "default": "SAVE10, VIP2026, SUMMER50",
+        "placeholder": "أدخل الأكواد مفصولة بفواصل (مثل: SAVE20, VIP50)"
+      },
+      {
+        "key": "match_mode",
+        "label": "نوع الفحص والمطابقة",
+        "type": "select",
+        "options": [
+          "تطابق تام بنسبة 100%",
+          "بحث جزئي يحتوي على الكلمة",
+          "حساس للأحرف (Case-Sensitive)"
+        ],
+        "default": "تطابق تام بنسبة 100%"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "in",
+        "label": "دخول التدفق"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out_primary",
+        "label": "المسار الأساسي (متطابق / فعال)",
+        "color": "#10B981"
+      },
+      {
+        "id": "out_secondary",
+        "label": "المسار البديل (غير متطابق / منتهي)",
+        "color": "#EF4444"
+      }
+    ],
+    "python_logic": "# Custom execution logic for: عايز البلوك يكون في مربع لادخال كود من رموز وارقام ولما تولس رساله من البلوك القابلو يفحص هل فياي كلمه شبه الاكواد الكتبتها بنسبه تطابق 100% والمخارج اريد واحد اذا كان الكود موجود في القائمه فعلا ومخرج اذا لم تكن موجوده\nexecution_log.append(f'Executed custom_فاحصأكوادالخصم_1789842455')",
+    "simulation_logic": {
+      "type": "match"
+    }
+  },
+  {
+    "id": "custom_قارئملفإكسيلخارجي_1789842788",
+    "name": "قارئ ملف إكسيل خارجي",
+    "description": "اريد بلوك يربط السيستم بملف اكسيل خارجي يحتوي علي اكواد واسعار خاصة ويستخرج الصف المطابق",
+    "category": "data",
+    "color": "#3B82F6",
+    "icon": "FileSpreadsheet",
+    "fields": [
+      {
+        "key": "file_path",
+        "label": "مسار ملف الإكسيل (Excel / CSV Path)",
+        "type": "file",
+        "default": "data/inventory.xlsx",
+        "placeholder": "data/inventory.xlsx أو اضغط لرفع ملف"
+      },
+      {
+        "key": "sheet_name",
+        "label": "اسم الشيت (Sheet Name)",
+        "type": "text",
+        "default": "Sheet1",
+        "placeholder": "Sheet1"
+      },
+      {
+        "key": "target_column",
+        "label": "عمود البحث والمطابقة",
+        "type": "text",
+        "default": "code",
+        "placeholder": "code, price, stock"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "in",
+        "label": "دخول التدفق"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out_primary",
+        "label": "المسار الأساسي (متطابق / فعال)",
+        "color": "#10B981"
+      },
+      {
+        "id": "out_secondary",
+        "label": "المسار البديل (غير متطابق / منتهي)",
+        "color": "#EF4444"
+      }
+    ],
+    "python_logic": "# Custom execution logic for: اريد بلوك يربط السيستم بملف اكسيل خارجي يحتوي علي اكواد واسعار خاصة ويستخرج الصف المطابق\nexecution_log.append(f'Executed custom_قارئملفإكسيلخارجي_1789842788')",
+    "simulation_logic": {
+      "type": "default"
+    }
+  },
+  {
+    "id": "custom_كودترويجي_1789843164",
+    "name": "كود ترويجي",
+    "description": "عايز بلوك في زر اربطو بملف خارجي ويتعمل مقارنه بين الكود الترويجي من الرساله الادمه اذا كان متواجد او لا",
+    "category": "data",
+    "color": "#3B82F6",
+    "icon": "FileSpreadsheet",
+    "fields": [
+      {
+        "key": "file_path",
+        "label": "مسار ملف الإكسيل (Excel / CSV Path)",
+        "type": "file",
+        "default": "data/inventory.xlsx",
+        "placeholder": "data/inventory.xlsx أو اضغط لرفع ملف"
+      },
+      {
+        "key": "sheet_name",
+        "label": "اسم الشيت (Sheet Name)",
+        "type": "text",
+        "default": "Sheet1",
+        "placeholder": "Sheet1"
+      },
+      {
+        "key": "target_column",
+        "label": "عمود البحث والمطابقة",
+        "type": "text",
+        "default": "code",
+        "placeholder": "code, price, stock"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "in",
+        "label": "دخول التدفق"
+      }
+    ],
+    "outputs": [
+      {
+        "id": "out_primary",
+        "label": "المسار الأساسي (متطابق / فعال)",
+        "color": "#10B981"
+      },
+      {
+        "id": "out_secondary",
+        "label": "المسار البديل (غير متطابق / منتهي)",
+        "color": "#EF4444"
+      }
+    ],
+    "python_logic": "# Custom execution logic for: عايز بلوك في زر اربطو بملف خارجي ويتعمل مقارنه بين الكود الترويجي من الرساله الادمه اذا كان متواجد او لا\nexecution_log.append(f'Executed custom_كودترويجي_1789843164')",
+    "simulation_logic": {
+      "type": "match"
+    }
+  }
+]

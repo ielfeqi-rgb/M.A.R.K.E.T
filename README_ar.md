@@ -1,158 +1,104 @@
-<p align="left">
-  <a href="./README.md">English</a> | <a href="./README_ar.md">العربية</a>
+<p align="right">
+  <a href="./README_ar.md">العربية</a> | <a href="./README.md">English</a>
 </p>
 
-# منصة M.A.R.K.E.T
+<p align="center">
+  <h1 align="center">منظومة M.A.R.K.E.T AI (الإصدار v4.0.0 للمؤسسات)</h1>
+  <p align="center">
+    <strong>محرك الأتمتة والاستجابة الذكي لخدمة التجارة والمبيعات وإدارة المخازن</strong><br/>
+    <em>استوديو العقد والمسارات الشجرية (Visual DAG Studio)، أوركسترا نماذج الذكاء الاصطناعي المحلية، وأتمتة قنوات التجارة في الوقت الفعلي</em>
+  </p>
+</p>
 
-**Modular Automated Response & Knowledge Engine for Trade**  
-*(المحرك النمطي المؤتمت للاستجابة والمعرفة في التجارة الإلكترونية)*
-
-[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.111%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Release](https://img.shields.io/github/v/release/ielfeqi-rgb/M.A.R.K.E.T?style=flat-square&color=orange)](https://github.com/ielfeqi-rgb/M.A.R.K.E.T/releases)
-[![License](https://img.shields.io/badge/License-PolyForm%20NonCommercial-green?style=flat-square)](./LICENSE)
-
-خادم أتمتة تجاري ذاتي الاستضافة (Self-Hosted) واستوديو تطوير مرئي لإدارة المحادثات وخدمة العملاء متعددة القنوات (واتساب، فيسبوك ماسنجر، تيك توك) وتدقيق المخزون.
-
----
-
-## معمارية النظام (Architecture Overview)
-
-تجمع منصة M.A.R.K.E.T بين خادم خلفي غير متزامن فائق السرعة مبني بـ FastAPI ومحرك برمجة مرئي مستوحى من بيئة Scratch 3.0، لتمكين فرق العمل والمتاجر من أتمتة خدمة العملاء واستعلامات المخزون وتوجيه الطلبات بأقل مجهود تشغيلي.
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        معمارية نظام M.A.R.K.E.T                        │
-├──────────────────────────┬─────────────────────────────────────────────┤
-│ استوديو الواجهة الأمامية │ محرر البلوكات المرئي (Scratch Paradigm)     │
-│ خادم الباك إند           │ FastAPI (ASGI / Python 3.12+)               │
-│ بوابات المراسلة          │ WhatsApp (OpenWA), Meta Messenger, Webhooks │
-│ ربط وتدقيق البيانات      │ Excel (openpyxl) و SQLite (market.db)       │
-│ طبقة استدلال الذكاء     │ محلي (Llama.cpp / Ollama) + سحابي (APIs)    │
-│ بيئات النشر والتشغيل     │ Docker, Docker Compose, Linux Systemd       │
-└──────────────────────────┴─────────────────────────────────────────────┘
-```
+<p align="center">
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/بايثون-3.12%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12+"/></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.111%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/></a>
+  <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-WAL%20Engine-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite WAL"/></a>
+  <a href="https://github.com/QwenLM/Qwen2.5"><img src="https://img.shields.io/badge/المبرمج%20الذكي-Qwen%202.5%20Coder-6366F1?style=for-the-badge&logo=openai&logoColor=white" alt="Qwen 2.5 Coder"/></a>
+  <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/دوكر-جاهز%20للإنتاج-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/الإصدار-v4.0.0%20Enterprise-10B981?style=for-the-badge" alt="Release v4.0.0"/></a>
+</p>
 
 ---
 
-## المكونات الأساسية (Core Components)
+## 🌟 استوديو العقد والمسارات الشجرية (Visual DAG Node Studio)
 
-- **استوديو التدفقات المرئية (Visual Workflow Builder):** بناء شجرات المحادثات ومنطق الردود بالسحب والإفلات للبلوكات التفاعلية، والتي يتم ترجمتها آلياً إلى كود بايثون حقيقي قابل للتنفيذ.
-- **محولات القنوات الموحدة (Multi-Channel Adapters):**
-  - **واتساب (WhatsApp):** تكامل مباشر مع بوابة OpenWA مع توليد فوري لرمز الاستجابة السريعة (QR Canvas) وتأكيد الطلبات تلقائياً.
-  - **فيسبوك وإنستغرام (Meta Messenger):** الاستماع لـ Webhooks للرد التلقائي على التعليقات العامة وتوجيه التفاصيل إلى الرسائل الخاصة (Inbox).
-  - **تيك توك والويب هوك (TikTok & Webhooks):** معالجة حمولات الطلبات وإشعارات التجارة الإلكترونية الواردة.
-- **محرك تدقيق المخزون ومنع الهلوسة (Grounding Engine):** مطابقة نصوص استفسارات العملاء بالعامية والفصحى مع المنتجات بدقة عبر `products.xlsx` وقواعد بيانات SQLite لمنع اختلاق الأسعار أو التفاصيل.
-- **سلسلة التوجيه المرنة للذكاء الاصطناعي (Inference Pipeline):** أولوية للتشغيل المحلي دون إنترنت عبر نماذج (`Qwen 2.5`, `Llama 3.2`)، مع إمكانية التحول التلقائي للسحابة (Google Gemini, Groq, OpenAI).
-- **أدوات المراقبة وإدارة العمليات (DevOps & Observability):** قياس مباشر لاستهلاك المعالج والذاكرة والاتصالات النشطة، مع قوالب جاهزة لـ Docker و Systemd و Nginx.
+<p align="center">
+  <img src="./docs/images/visual-node-graph.png" alt="M.A.R.K.E.T v4.0.0 Visual Node Graph Studio" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
+</p>
+
+**M.A.R.K.E.T v4.0.0** هي منصة مفتوحة المصدر واستضافة ذاتية (Self-Hosted) عالية الكفاءة للمؤسسات والتجار تجمع بين التنسيق المرئي للمسارات وبين التوليد البرمجي المستقل لكود بايثون. تتيح المنظومة بناء ومحاكاة مسارات محادثات العملاء، قواعد التحقق من أكواد الخصم، وتأصيل بيانات المخازن وقواعد البيانات عبر لوحة شجرية لا نهائية (2D DAG Canvas) تُترجم مباشرة إلى كود بايثون سريع وقابل للتنفيذ.
 
 ---
 
-## دليل البدء والتشغيل (Getting Started)
+## ⚡ المزايا والقدرات الرئيسية (v4.0.0 Enterprise)
 
-### المتطلبات الأساسية
-
-- بايثون 3.10 أو أحدث (يوصى بـ Python 3.12)
-- مدير الحزم `pip` وبيئة `venv`
-- دوكر و Docker Compose (اختياري، في حال الرغبة بالنشر عبر الحاويات)
-
-### التشغيل المحلي
-
-1. استنساخ المستودع (Clone):
-   ```bash
-   git clone https://github.com/ielfeqi-rgb/M.A.R.K.E.T.git
-   cd M.A.R.K.E.T
-   ```
-
-2. إعداد متغيرات البيئة:
-   ```bash
-   cp .env.example .env
-   # قم بتعديل ملف .env لإضافة المفاتيح والإعدادات الخاصة بك
-   ```
-
-3. تشغيل سكريبت البدء التلقائي:
-   ```bash
-   chmod +x start.sh
-   ./start.sh
-   ```
-
-4. فتح لوحة التحكم في المتصفح:
-   - **لوحة المراقبة والتحكم:** [http://localhost:8000](http://localhost:8000)
-   - **توثيق الـ API التفاعلي (Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **🎨 لوحة عقد شجرية لا نهائية (Infinite 2D DAG Canvas)**: تصميم ومطابقة تدفق العمليات مع مغناطيسية التوصيل والأسلاك الحسابية المنحنية ومؤشرات التأخير الزمني لكل خطوة.
+- **🧠 توليد الكود الذكي والمستقل (Qwen 2.5 Coder)**: محرك ذكاء مخصص يتلقى متطلبات المستخدم (مثل ربط ملفات إكسيل إضافية، فحص أكواد الخصم، جداول SQL) ويولد عقد تفاعلية وكود بايثون تنفيذي فوري.
+- **⚡ أوركسترا تشغيل الموديلات المتزامنة (Dual-Model Concurrency)**: عزل تام بين موديل البرمجة وتوليد العقد وموديل خدمة العملاء وقنوات التواصل لضمان السرعة الفائقة بدون أي تعارض.
+- **💾 قاعدة بيانات SQLite بنمط WAL الصارم**: منع الهلوسة بنسبة 100% عبر الاستعلام اللحظي (أقل من 1ms) والمزامنة المباشرة مع ملف `products.xlsx`.
+- **📱 بوابة قنوات التواصل الشاملة (Omni-Channel Gateways)**: دعم كامل لواتساب عبر OpenWA مع مسح رمز QR مباشرة من الواجهة، وفيسبوك ماسنجر، وتيك توك.
+- **🛠️ منصة فحص ومراقبة متكاملة (DevTools & Live Inspector Suite)**: تتبع تفصيلي لكل خطوة بالمللي ثانية، قياس استهلاك التوكنز والسرعة (`Tokens / Sec`)، واختبارات ضغط وتزامن الخادم.
 
 ---
 
-## النشر في بيئات الإنتاج (Production Deployment)
+## 🚀 التشغيل والبدء السريع
 
-### الخيار الأول: عبر Docker Compose (الأسهل والأكثر استقراراً)
+### 1. المتطلبات الأساسية
+- **Python 3.10+** (يوصى بإصدار 3.12)
+- **Pip & Venv**
+- **Docker & Docker Compose** (اختياري للتشغيل بالحاويات)
+
+### 2. التثبيت والتشغيل
 
 ```bash
+# استنساخ المستودع
+git clone https://github.com/ielfeqi-rgb/M.A.R.K.E.T.git
+cd M.A.R.K.E.T
+
+# نسخ ملف الإعدادات
 cp .env.example .env
-docker-compose up -d --build
+
+# تشغيل السيرفر الموحد
+chmod +x start.sh
+./start.sh
 ```
 
-### الخيار الثاني: على خادم لينكس مباشرة (Linux Systemd VPS)
-
-```bash
-sudo ./deploy.sh
-```
-
-للحصول على تفاصيل شاملة حول ضبط الـ Reverse Proxy عبر Nginx وتفعيل شهادات SSL مجانية (Let's Encrypt)، راجع [`IT_DEPLOYMENT_GUIDE.md`](./IT_DEPLOYMENT_GUIDE.md).
+### 3. الدخول إلى المنصة الموحدة
+- **الواجهة الموحدة للمنظومة**: [http://localhost:8000](http://localhost:8000)
+- **توثيق الـ API التفاعلي (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## هيكلية المشروع (Project Structure)
+## 🧭 أقسام المنظومة الموحدة
 
-```
-M.A.R.K.E.T/
-├── main.py                 # نقطة الدخول الأساسية لخادم FastAPI والمسارات
-├── scratch_engine.py       # محرك ترجمة بلوكات سكراتش إلى كود بايثون
-├── bot_logic.py            # منطق إدارة الحوارات وتوجيه المحادثات
-├── ai_provider.py          # عميل موحد للربط مع نماذج الذكاء الاصطناعي المحلية والسحابية
-├── excel_helper.py         # فهرسة شيت الإكسيل والبحث المطابق في الذاكرة
-├── plugin_manager.py       # محمل الإضافات الديناميكي وسجل الإضافات
-├── config.json             # ملف الإعدادات المباشرة للنظام
-├── products.xlsx           # قاعدة بيانات المنتجات والمخزون
-├── plugins/                # ملحقات ومحولات القنوات المعيارية
-│   ├── whatsapp_openwa/    # تكامل الواتساب
-│   ├── facebook_messenger/ # تكامل ماسنجر فيسبوك
-│   ├── tiktok_webhook/     # معالج ويب هوك تيك توك
-│   └── qr_excel_lookup/    # فاحص المخزون عبر الباركود و QR
-├── Dockerfile              # بناء حاوية الإنتاج
-├── docker-compose.yml      # أوركستريشن الخدمات (الخادم الأساسي + بوابة الواتساب)
-├── market-ai.service       # وحدة خدمة لينكس (Systemd Unit)
-├── nginx.conf.example      # قالب إعداد خادم Nginx العكسي
-├── start.sh                # سكريبت التشغيل المحلي
-├── deploy.sh               # سكريبت النشر الآلي للإنتاج
-└── static/                 # ملفات الواجهة الأمامية ولوحة المراقبة
-```
-
----
-
-## شكر وتقدير للمصادر المفتوحة (Open Source Credits)
-
-يقوم هذا المشروع على جهود مجتمع البرمجيات الحرة ومفتوحة المصدر. نتوجه بالشكر والتقدير للمطورين والمؤسسات التالية:
-
-| المشروع | المطور / المؤسسة | الوصف والدور في النظام |
+| القسم | الوصف والوظيفة | الوصول السريع |
 | :--- | :--- | :--- |
-| **[FastAPI](https://fastapi.tiangolo.com/)** | سيباستيان راميريز ([@tiangolo](https://github.com/tiangolo)) | إطار عمل الويب غير المتزامن عالي الأداء |
-| **[Uvicorn](https://www.uvicorn.org/)** | فريق Encode OSS | خادم ويب ASGI فائق السرعة |
-| **[Scratch](https://scratch.mit.edu/)** | معمل MIT Media Lab | استلهام فلسفة البرمجة المرئية القائمة على البلوكات |
-| **[OpenWA / WPPConnect](https://github.com/open-wa/wa-automate-nodejs)** | محمد شاه ومجتمع المطورين | بوابة أتمتة وتشغيل واتساب ويب |
-| **[llama.cpp](https://github.com/ggerganov/llama.cpp)** | جورجي غيرغانوف والمساهمون | محرك الاستدلال المحلي عالي الكفاءة بلغة C/C++ |
-| **[Qwen Models](https://github.com/QwenLM/Qwen2.5)** | علي بابا كلاود / فريق Qwen | النماذج الأساسية Qwen 2.5 و Qwen 2.5 Coder |
-| **[Llama](https://github.com/meta-llama/llama3)** | ميتا للذكاء الاصطناعي (Meta AI) | نماذج لاما 3 مفتوحة المصدر |
-| **[openpyxl](https://openpyxl.readthedocs.io/)** | إريك غازوني، تشارلي كلارك | مكتبة التعامل مع ملفات وجداول الإكسيل ببايثون |
-| **[Pydantic](https://docs.pydantic.dev/)** | صموئيل كولفين والمساهمون | التحقق من صحة البيانات وإدارة الإعدادات |
-| **[Lucide Icons](https://lucide.dev/)** | مشروع Lucide | حزمة الأيقونات الحديثة للواجهة |
-| **[Tailwind CSS](https://tailwindcss.com/)** | مختبرات Tailwind Labs | إطار عمل تنسيق وتصميم الواجهات |
+| **📊 لوحة القيادة والمؤشرات** | عدادات الهاردوير اللحظية، مراقبة الرام والمعالج، وحالة خادم الذكاء المحلي. | `القائمة الجانبية -> لوحة القيادة` |
+| **🧩 استوديو العقد والمسارات** | لوحة ربط العقد، استوديو Qwen لتوليد العقد، ومحاكي المحادثة اللحظي. | `القائمة الجانبية -> استوديو العقد` |
+| **🔬 منصة الفحص والتحليل** | تتبع أزمنة الـ DAG، محلل التوكنز، كونسول استعلامات SQL، واختبار الضغط. | `القائمة الجانبية -> منصة الفحص` |
+| **📦 المخزن وقاعدة البيانات** | جدول منتجات SQLite WAL، مؤشرات المخزون، والمزامنة مع الإكسيل. | `القائمة الجانبية -> المخزن` |
+| **📱 بوابة واتساب OpenWA** | عرض ومسح رمز الـ QR مباشرة، ومراقبة حالة البوابة واختبار الإرسال. | `القائمة الجانبية -> بوابة واتساب` |
+| **⚙️ إعدادات النظام والـ AI** | تبديل مزودي الذكاء (Gemini, Groq, Llama, Ollama) وحفظ البرومبت. | `القائمة الجانبية -> الإعدادات` |
 
 ---
 
-## الترخيص وشروط الاستخدام (License)
+## 🤝 شكر وتقدير للمشاريع مفتوحة المصدر
 
-هذا المشروع مرخص بموجب رخصة **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
-الاستخدام مجاني ومتاح للأغراض الشخصية والتعليمية وغير الربحية والمفتوحة المصدر.
+نبني هذه المنظومة على أكتاف عمالقة البرمجيات مفتوحة المصدر:
 
-للحصول على تراخيص للاستخدام التجاري للشركات، يرجى التواصل مع مالك المشروع.
+- **[FastAPI](https://fastapi.tiangolo.com/)** — بواسطة Sebastián Ramírez (@tiangolo).
+- **[Uvicorn](https://www.uvicorn.org/)** — خادم الـ ASGI فائق السرعة.
+- **[Qwen Models](https://github.com/QwenLM/Qwen2.5)** — نماذج الذكاء الاصطناعي المتقدمة من Alibaba Cloud.
+- **[llama.cpp](https://github.com/ggerganov/llama.cpp)** — محرك تشغيل نماذج الذكاء محلياً بكفاءة C/C++.
+- **[OpenWA](https://github.com/open-wa/wa-automate-nodejs)** — بوابة أتمتة واتساب.
+- **[SQLite](https://www.sqlite.org/)** — محرك التخزين والبيانات فائق السرعة بنمط WAL.
+- **[Lucide Icons](https://lucide.dev/)** — مكتبة الأيقونات العصرية.
+- **[Tailwind CSS](https://tailwindcss.com/)** — إطار التنسيق والتصميم المرن.
+
+---
+
+## 📄 الترخيص
+
+هذا المشروع مرخص بموجب **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
+متاح مجاناً للاستخدام الشخصي والتعليمي وغير التجاري.

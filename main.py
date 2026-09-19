@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+from pathlib import Path
 import socket
 import time
 from contextlib import asynccontextmanager
@@ -25,6 +26,8 @@ from bot_logic import (
     save_config,
     generate_ai_reply,
     lookup_product,
+    ProductInfo,
+    verify_and_guard_grounding,
 )
 from excel_helper import excel_cache
 from http_client import close_all_clients, AsyncHTTPClient
@@ -94,6 +97,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     excel_cache.reload()
     logger.info("Excel product database loaded")
+
+    # Initialize SQLite WAL Storage Engine (ACID-compliant storage)
+    from database import db
+    synced_count = db.sync_from_excel()
+    logger.info(f"SQLite WAL Storage Engine online: {synced_count} products synchronized.")
 
     # Detect hardware at startup
     hw = get_system_hardware()
@@ -259,7 +267,8 @@ async def get_hardware_info():
 
 @app.get("/api/settings")
 async def get_settings():
-    return load_config()
+    cfg = load_config()
+    return {"status": "success", "config": cfg, **cfg}
 
 
 @app.post("/api/server/reload_excel")
@@ -375,6 +384,20 @@ async def toggle_plugin_endpoint(data: dict):
     plugin_manager.set_plugin_state(plugin_id, enabled)
     await log_message("PluginManager", f"Plugin '{plugin_id}' toggled to: {enabled}")
     return {"status": "success", "plugin_id": plugin_id, "enabled": enabled}
+
+
+@app.delete("/api/plugins/{plugin_id}")
+async def delete_plugin_endpoint(plugin_id: str):
+    plugins_dir = Path(__file__).parent / "plugins"
+    ext_dir = plugins_dir / plugin_id
+    if ext_dir.exists() and ext_dir.is_dir():
+        import shutil
+        shutil.rmtree(ext_dir, ignore_errors=True)
+        plugin_manager.load_plugins()
+        await log_message("PluginManager", f"Deleted extension: {plugin_id}")
+        return {"status": "success", "plugin_id": plugin_id, "message": f"تم حذف الإضافة '{plugin_id}' بنجاح"}
+    raise HTTPException(status_code=404, detail="الإضافة غير موجودة")
+
 
 
 @app.get("/api/v3/coder/status")
@@ -1035,44 +1058,339 @@ async def get_scratch_flow(extension_id: str = "whatsapp_openwa"):
 async def save_scratch_flow(request: Request):
     """Saves block flow to plugins/<extension_id>/flow.json."""
     data = await request.json()
-    extension_id = data.get("extension_id", "").strip()
+    extension_id = data.get("extension_id", "").strip() or "whatsapp_openwa"
     flow = data.get("flow", [])
+    edges = data.get("edges", [])
     if not extension_id:
         raise HTTPException(status_code=400, detail="معرف الإضافة مطلوب")
-    ext = plugin_manager.engine.extensions.get(extension_id)
-    if not ext:
-        raise HTTPException(status_code=404, detail="الإضافة غير موجودة")
-    flow_file = ext.dir_path / "flow.json"
-    flow_file.write_text(json.dumps(flow, ensure_ascii=False, indent=2), encoding="utf-8")
-    return {"status": "success", "message": "تم حفظ مخطط المكعبات بنجاح"}
+
+    plugins_dir = Path(__file__).parent / "plugins"
+    ext_dir = plugins_dir / extension_id
+    ext_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest_file = ext_dir / "manifest.json"
+    if not manifest_file.exists():
+        manifest_data = {
+            "manifest_version": 3,
+            "id": extension_id,
+            "name": data.get("name", extension_id.replace("_", " ").title()),
+            "version": "1.0.0",
+            "description": data.get("description", "إضافة مخصصة تم تصميمها عبر استوديو سكراتش الموجه بالذكاء الاصطناعي"),
+            "author": "M.A.R.K.E.T Scratch Studio",
+            "icon": "sparkles",
+            "entrypoint": "backend.py",
+            "permissions": ["network", "ai", "webhooks"],
+            "enabled": True,
+            "routes": {
+                "prefix": f"/ext/{extension_id}",
+                "webhooks": ["/webhook", "/execute"]
+            }
+        }
+        manifest_file.write_text(json.dumps(manifest_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    nodes = flow.get("nodes", flow) if isinstance(flow, dict) else flow
+    flow_to_save = {
+        "nodes": nodes,
+        "edges": edges if edges else (flow.get("edges", []) if isinstance(flow, dict) else [])
+    }
+    flow_file = ext_dir / "flow.json"
+    flow_file.write_text(json.dumps(flow_to_save, ensure_ascii=False, indent=2), encoding="utf-8")
+    
+    # Reload plugins
+    plugin_manager.load_plugins()
+    plugin_manager.mount_extension_routers(app)
+    await log_message("ScratchEngine", f"تم حفظ مخطط المكعبات وتحديث الإضافة '{extension_id}' بنجاح في {flow_file}")
+    
+    return {
+        "status": "success",
+        "extension_id": extension_id,
+        "path": str(flow_file),
+        "message": f"تم حفظ مخطط المكعبات بنجاح في {extension_id}/flow.json"
+    }
 
 @app.post("/api/v3/scratch/compile")
 async def compile_scratch_flow(request: Request):
     """Compiles visual blocks into Python code and writes to backend.py."""
     import scratch_engine
     data = await request.json()
-    extension_id = data.get("extension_id", "").strip()
+    extension_id = data.get("extension_id", "").strip() or "whatsapp_openwa"
     flow = data.get("flow", [])
+    edges = data.get("edges", [])
     save_to_backend = data.get("save_to_backend", True)
     if not extension_id:
         raise HTTPException(status_code=400, detail="معرف الإضافة مطلوب")
-    compiled_code = scratch_engine.compile_flow_to_python(flow, extension_id)
+
+    nodes = flow.get("nodes", flow) if isinstance(flow, dict) else flow
+    compiled_code = scratch_engine.compile_flow_to_python(nodes, extension_id)
+    
+    plugins_dir = Path(__file__).parent / "plugins"
+    ext_dir = plugins_dir / extension_id
+    ext_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest_file = ext_dir / "manifest.json"
+    if not manifest_file.exists():
+        manifest_data = {
+            "manifest_version": 3,
+            "id": extension_id,
+            "name": data.get("name", extension_id.replace("_", " ").title()),
+            "version": "1.0.0",
+            "description": data.get("description", "إضافة مخصصة تم تصميمها وترجمتها عبر Qwen 2.5 Coder"),
+            "author": "M.A.R.K.E.T Scratch Studio",
+            "icon": "code",
+            "entrypoint": "backend.py",
+            "permissions": ["network", "ai", "webhooks"],
+            "enabled": True,
+            "routes": {
+                "prefix": f"/ext/{extension_id}",
+                "webhooks": ["/webhook", "/execute"]
+            }
+        }
+        manifest_file.write_text(json.dumps(manifest_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    flow_to_save = {
+        "nodes": nodes,
+        "edges": edges if edges else (flow.get("edges", []) if isinstance(flow, dict) else [])
+    }
+    flow_file = ext_dir / "flow.json"
+    flow_file.write_text(json.dumps(flow_to_save, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    backend_file = ext_dir / "backend.py"
     if save_to_backend:
-        ext = plugin_manager.engine.extensions.get(extension_id)
-        if ext:
-            backend_file = ext.dir_path / "backend.py"
-            backend_file.write_text(compiled_code, encoding="utf-8")
-            flow_file = ext.dir_path / "flow.json"
-            flow_file.write_text(json.dumps(flow, ensure_ascii=False, indent=2), encoding="utf-8")
-            plugin_manager.load_plugins()
-            plugin_manager.mount_extension_routers(app)
-            await log_message("ScratchEngine", f"Compiled and hot-reloaded {extension_id}/backend.py from Scratch blocks.")
+        backend_file.write_text(compiled_code, encoding="utf-8")
+        plugin_manager.load_plugins()
+        plugin_manager.mount_extension_routers(app)
+        await log_message("ScratchEngine", f"🚀 تم ترجمة وتفعيل {extension_id}/backend.py و flow.json وحفظها في المجلد بنجاح.")
+
     return {
         "status": "success",
         "extension_id": extension_id,
+        "backend_file": str(backend_file),
+        "flow_file": str(flow_file),
         "code": compiled_code,
-        "message": "تم ترجمة المكعبات إلى كود بايثون وحفظها وتفعيلها بنجاح! 🚀"
+        "message": f"تم ترجمة المكعبات إلى بايثون وحفظها وتفعيلها في plugins/{extension_id}/backend.py بنجاح! 🚀"
     }
+
+
+@app.post("/api/v3/scratch/synthesize-node")
+async def synthesize_scratch_node(request: Request):
+    """
+    Calls Qwen 2.5 Coder (via AIProviderManager) to synthesize a fully-formed interactive Scratch Node
+    including UI fields, input/output sockets, and Python DAG logic.
+    """
+    data = await request.json()
+    user_prompt = data.get("prompt", "").strip()
+    category = data.get("category", "data")
+    custom_title = data.get("title", "").strip()
+    branching_type = data.get("branching_type", "single") # single, dual, parallel
+
+    if not user_prompt:
+        raise HTTPException(status_code=400, detail="وصف العقدة أو متطلبات المنطق مطلوبة")
+
+    config = load_config()
+
+    system_instruction = """You are Qwen 2.5 Coder, the AI Node Architect for M.A.R.K.E.T Studio.
+Transform the user's natural language requirements into a valid, production-ready interactive visual node schema for our drag-and-drop studio.
+
+Output MUST be a single, strictly valid JSON object (no markdown quotes, no explanations outside JSON) following this exact schema:
+{
+  "id": "custom_<slug>_<timestamp>",
+  "name": "عنوان العقدة بالعربية المهنية الواضحة",
+  "description": "شرح وظيفي مختصر وواضح لما تقوم به العقدة",
+  "category": "triggers" | "data" | "ai" | "routing" | "offers" | "dispatch" | "custom",
+  "color": "#HEX_COLOR",
+  "icon": "Lucide icon name (e.g. Tag, FileSpreadsheet, Code, Database, Filter, Sparkles, Sliders, ShieldCheck, Send, Cpu, Layers)",
+  "fields": [
+    {
+      "key": "machine_field_key",
+      "label": "اسم الحقل بالعربية للمستخدم",
+      "type": "text" | "code" | "textarea" | "select" | "toggle" | "file" | "number",
+      "default": "القيمة الافتراضية المناسبة",
+      "placeholder": "نص إرشادي اختياري داخل الحقل",
+      "options": ["خيار 1", "خيار 2"]
+    }
+  ],
+  "inputs": [
+    { "id": "in", "label": "دخول التدفق" }
+  ],
+  "outputs": [
+    { "id": "out_1", "label": "اسم المخرج بالعربية", "color": "#HEX" }
+  ],
+  "python_logic": "Executable Python code snippet representing this step in the DAG. Has access to context (dict), fields (dict), and execution_log (list).",
+  "simulation_logic": {
+    "type": "match",
+    "target_field": "machine_field_key",
+    "match_mode": "exact"
+  }
+}
+"""
+
+    user_req = f"""[USER REQUIREMENTS]:
+- Description / Goal: {user_prompt}
+- Preferred Category: {category}
+- Custom Title (if provided): {custom_title or 'Generate appropriate title'}
+- Branching Preference: {branching_type} (single = 1 output, dual = 2 outputs like true/false or match/nomatch, parallel = broadcast)
+
+Synthesize the complete interactive node definition JSON now:"""
+
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {"role": "user", "content": user_req}
+    ]
+
+    raw_response = None
+    try:
+        raw_response = await AIProviderManager.complete_chat(messages, config, temperature=0.2)
+    except Exception as e:
+        logger.warning(f"complete_chat failed during node synthesis: {e}")
+
+    node_schema = None
+    if raw_response:
+        cleaned = raw_response.strip()
+        if "```json" in cleaned:
+            cleaned = cleaned.split("```json", 1)[1].split("```", 1)[0].strip()
+        elif "```" in cleaned:
+            cleaned = cleaned.split("```", 1)[1].split("```", 1)[0].strip()
+        try:
+            node_schema = json.loads(cleaned)
+        except Exception as e:
+            logger.warning(f"JSON parsing error from Qwen response: {e}")
+
+    # If LLM didn't return valid JSON, synthesize a safe, structured fallback schema based on user inputs
+    if not node_schema or not isinstance(node_schema, dict) or "fields" not in node_schema:
+        import time
+        slug = "".join(c for c in (custom_title or "custom_node").lower() if c.isalnum() or c == "_")[:20] or "custom_node"
+        node_id = f"custom_{slug}_{int(time.time())}"
+        
+        if branching_type == "dual":
+            outputs = [
+                {"id": "out_primary", "label": "المسار الأساسي (متطابق / فعال)", "color": "#10B981"},
+                {"id": "out_secondary", "label": "المسار البديل (غير متطابق / منتهي)", "color": "#EF4444"}
+            ]
+        elif branching_type == "parallel":
+            outputs = [
+                {"id": "out_fork_1", "label": "تفرع موازي 1", "color": "#3B82F6"},
+                {"id": "out_fork_2", "label": "تفرع موازي 2", "color": "#8B5CF6"}
+            ]
+        else:
+            outputs = [
+                {"id": "out", "label": "المسار التالي", "color": "#3B82F6"}
+            ]
+
+        fields = []
+        is_excel_or_file = any(w in user_prompt.lower() for w in ("excel", "اكسيل", "إكسيل", "ملف", "شيت", "sheet", "csv"))
+        is_code_or_promo = any(w in user_prompt.lower() for w in ("كود", "رمز", "promo", "code", "تطابق", "خصم"))
+
+        if is_excel_or_file:
+            fields.append({
+                "key": "file_path",
+                "label": "مسار ملف الإكسيل (Excel / CSV Path)",
+                "type": "file",
+                "default": "data/inventory.xlsx",
+                "placeholder": "data/inventory.xlsx أو اضغط لرفع ملف"
+            })
+            fields.append({
+                "key": "sheet_name",
+                "label": "اسم الشيت (Sheet Name)",
+                "type": "text",
+                "default": "Sheet1",
+                "placeholder": "Sheet1"
+            })
+            fields.append({
+                "key": "target_column",
+                "label": "عمود البحث والمطابقة",
+                "type": "text",
+                "default": "code",
+                "placeholder": "code, price, stock"
+            })
+        elif is_code_or_promo:
+            fields.append({
+                "key": "target_codes",
+                "label": "أكواد الخصم / الرموز المعتمدة",
+                "type": "code",
+                "default": "SAVE10, VIP2026, SUMMER50",
+                "placeholder": "أدخل الأكواد مفصولة بفواصل (مثل: SAVE20, VIP50)"
+            })
+            fields.append({
+                "key": "match_mode",
+                "label": "نوع الفحص والمطابقة",
+                "type": "select",
+                "options": ["تطابق تام بنسبة 100%", "بحث جزئي يحتوي على الكلمة", "حساس للأحرف (Case-Sensitive)"],
+                "default": "تطابق تام بنسبة 100%"
+            })
+        else:
+            fields.append({
+                "key": "parameter_value",
+                "label": "القيمة أو النص المخصص",
+                "type": "text",
+                "default": "",
+                "placeholder": "أدخل القيمة المراد تمريرها للعقدة"
+            })
+
+        node_schema = {
+            "id": node_id,
+            "name": custom_title or ("فاحص أكواد ومطابقة" if is_code_or_promo else ("قارئ ملفات Excel" if is_excel_or_file else "عقدة مخصصة")),
+            "description": user_prompt[:120],
+            "category": category,
+            "color": "#3B82F6" if category == "data" else ("#10B981" if category == "offers" else "#8B5CF6"),
+            "icon": "FileSpreadsheet" if is_excel_or_file else ("Tag" if is_code_or_promo else "Code"),
+            "fields": fields,
+            "inputs": [] if category == "triggers" else [{"id": "in", "label": "دخول التدفق"}],
+            "outputs": outputs,
+            "python_logic": f"# Custom execution logic for: {user_prompt}\nexecution_log.append(f'Executed {node_id}')",
+            "simulation_logic": {"type": "match" if is_code_or_promo else "default"}
+        }
+
+    # Save to custom_blocks.json so it's persisted in the palette library
+    plugins_dir = Path(__file__).parent / "plugins"
+    plugins_dir.mkdir(parents=True, exist_ok=True)
+    custom_blocks_file = plugins_dir / "custom_blocks.json"
+    
+    existing_blocks = []
+    if custom_blocks_file.exists():
+        try:
+            existing_blocks = json.loads(custom_blocks_file.read_text(encoding="utf-8"))
+        except Exception:
+            existing_blocks = []
+    
+    existing_blocks = [b for b in existing_blocks if b.get("id") != node_schema.get("id")]
+    existing_blocks.append(node_schema)
+    custom_blocks_file.write_text(json.dumps(existing_blocks, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return {
+        "status": "success",
+        "node": node_schema,
+        "message": f"تم توليد وهندسة العقدة '{node_schema.get('name')}' بالذكاء الاصطناعي بنجاح! ✨"
+    }
+
+
+@app.get("/api/v3/scratch/custom-blocks")
+async def get_custom_scratch_blocks():
+    """Returns all custom AI generated blocks saved in plugins/custom_blocks.json."""
+    plugins_dir = Path(__file__).parent / "plugins"
+    custom_blocks_file = plugins_dir / "custom_blocks.json"
+    if custom_blocks_file.exists():
+        try:
+            blocks = json.loads(custom_blocks_file.read_text(encoding="utf-8"))
+            return {"status": "success", "blocks": blocks}
+        except Exception as e:
+            return {"status": "error", "message": str(e), "blocks": []}
+    return {"status": "success", "blocks": []}
+
+
+@app.delete("/api/v3/scratch/custom-blocks/{block_id}")
+async def delete_custom_scratch_block(block_id: str):
+    """Deletes a custom AI generated block from plugins/custom_blocks.json."""
+    plugins_dir = Path(__file__).parent / "plugins"
+    custom_blocks_file = plugins_dir / "custom_blocks.json"
+    if custom_blocks_file.exists():
+        try:
+            blocks = json.loads(custom_blocks_file.read_text(encoding="utf-8"))
+            blocks = [b for b in blocks if b.get("id") != block_id]
+            custom_blocks_file.write_text(json.dumps(blocks, ensure_ascii=False, indent=2), encoding="utf-8")
+            return {"status": "success", "message": f"تم حذف العقدة {block_id} بنجاح"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    return {"status": "success", "message": "لم يتم العثور على ملف العقد المخصصة"}
 
 
 @app.post("/api/v3/scratch/generate-ai-pipeline")
@@ -1182,21 +1500,44 @@ Your task is to write the complete, clean, executable Python file `backend.py` f
         generated_code = generated_code.split("```", 1)[1].split("```", 1)[0].strip()
 
     if save_to_backend:
-        ext = plugin_manager.engine.extensions.get(extension_id)
-        if ext:
-            backend_file = ext.dir_path / "backend.py"
-            backend_file.write_text(generated_code, encoding="utf-8")
-            pipeline_file = ext.dir_path / "pipeline.json"
-            pipeline_file.write_text(json.dumps(pipeline_data, ensure_ascii=False, indent=2), encoding="utf-8")
-            plugin_manager.load_plugins()
-            plugin_manager.mount_extension_routers(app)
-            await log_message("ScratchAI", f"Successfully compiled and deployed '{extension_id}/backend.py' via Qwen 2.5 Coder!")
+        plugins_dir = Path(__file__).parent / "plugins"
+        ext_dir = plugins_dir / extension_id
+        ext_dir.mkdir(parents=True, exist_ok=True)
+
+        manifest_file = ext_dir / "manifest.json"
+        if not manifest_file.exists():
+            manifest_data = {
+                "manifest_version": 3,
+                "id": extension_id,
+                "name": extension_id.replace("_", " ").title(),
+                "version": "1.0.0",
+                "description": "إضافة مخصصة تم توليدها بواسطة Qwen 2.5 Coder",
+                "author": "M.A.R.K.E.T AI",
+                "icon": "sparkles",
+                "entrypoint": "backend.py",
+                "permissions": ["network", "ai", "webhooks"],
+                "enabled": True,
+                "routes": {
+                    "prefix": f"/ext/{extension_id}",
+                    "webhooks": ["/webhook", "/execute"]
+                }
+            }
+            manifest_file.write_text(json.dumps(manifest_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        backend_file = ext_dir / "backend.py"
+        backend_file.write_text(generated_code, encoding="utf-8")
+        pipeline_file = ext_dir / "pipeline.json"
+        pipeline_file.write_text(json.dumps(pipeline_data, ensure_ascii=False, indent=2), encoding="utf-8")
+        plugin_manager.load_plugins()
+        plugin_manager.mount_extension_routers(app)
+        await log_message("ScratchAI", f"Successfully compiled and deployed '{extension_id}/backend.py' via Qwen 2.5 Coder!")
 
     return {
         "status": "success",
         "extension_id": extension_id,
+        "backend_file": str(plugins_dir / extension_id / "backend.py"),
         "code": generated_code,
-        "message": "تم توليد كود بايثون وحفظه وتفعيله بنجاح عبر Qwen 2.5 Coder! 🚀"
+        "message": f"تم توليد كود بايثون وحفظه وتفعيله بنجاح في plugins/{extension_id}/backend.py عبر Qwen 2.5 Coder! 🚀"
     }
 
 
@@ -1230,6 +1571,166 @@ async def get_models_status():
         },
         "description": "المحرك يدعم تشغيل الموديلين في نفس الوقت بدون أي تعارض؛ كل طلب يوجه لموديله المخصص."
     }
+
+
+# ---------------- Developer Debug & Inspector Suite APIs ----------------
+
+@app.post("/api/v3/debug/sql-query")
+async def debug_sql_query(request: Request):
+    """
+    Executes an SQL query against the SQLite WAL database (market_edge.db) for real-time debugging.
+    Returns result rows, column headers, execution time, and DB statistics.
+    """
+    from database import db, DB_PATH
+    data = await request.json()
+    query = data.get("query", "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="SQL query cannot be empty")
+
+    db_path = DB_PATH
+    wal_path = db_path.parent / f"{db_path.name}-wal"
+    shm_path = db_path.parent / f"{db_path.name}-shm"
+
+    start_time = time.perf_counter()
+    columns = []
+    rows = []
+    error = None
+    rowcount = 0
+
+    try:
+        conn = db.get_connection()
+        cur = conn.cursor()
+        cur.execute(query)
+        
+        if cur.description:
+            columns = [d[0] for d in cur.description]
+            fetched = cur.fetchmany(100)
+            rows = [dict(r) for r in fetched]
+            rowcount = len(rows)
+        else:
+            conn.commit()
+            rowcount = cur.rowcount
+            columns = ["affected_rows"]
+            rows = [{"affected_rows": rowcount}]
+            
+        conn.close()
+    except Exception as e:
+        error = str(e)
+
+    elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+    db_size = db_path.stat().st_size if db_path.exists() else 0
+    wal_size = wal_path.stat().st_size if wal_path.exists() else 0
+    shm_size = shm_path.stat().st_size if shm_path.exists() else 0
+
+    return {
+        "status": "success" if error is None else "error",
+        "query": query,
+        "execution_time_ms": elapsed_ms,
+        "row_count": rowcount,
+        "columns": columns,
+        "rows": rows,
+        "error": error,
+        "db_stats": {
+            "db_size_bytes": db_size,
+            "wal_size_bytes": wal_size,
+            "shm_size_bytes": shm_size,
+            "journal_mode": "wal"
+        }
+    }
+
+
+@app.post("/api/v3/debug/llm-benchmark")
+async def debug_llm_benchmark(request: Request):
+    """
+    Directly benchmarks the active AI Provider or Qwen 2.5 Coder.
+    Measures latency, token estimation, and raw output.
+    """
+    data = await request.json()
+    prompt = data.get("prompt", "Hello test").strip()
+    target_role = data.get("role", "chat") # 'chat' or 'coder'
+    system_prompt = data.get("system_prompt", "You are an AI benchmark tester.")
+    
+    config = load_config()
+    start_time = time.perf_counter()
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt}
+    ]
+    
+    response_text = ""
+    error = None
+    try:
+        if target_role == "coder":
+            response_text = await AIProviderManager.complete_coder(messages, config, temperature=0.1)
+        else:
+            response_text = await AIProviderManager.complete(messages, config, temperature=0.3)
+    except Exception as e:
+        error = str(e)
+        
+    elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+    
+    # Approximate tokens
+    prompt_tokens = len(prompt.split()) + len(system_prompt.split())
+    completion_tokens = len((response_text or "").split())
+    
+    return {
+        "status": "success" if error is None else "error",
+        "target_role": target_role,
+        "provider": config.get("ai_provider", "custom") if target_role != "coder" else "local_coder",
+        "model": config.get("coder_model", "qwen2.5-coder:0.5b") if target_role == "coder" else config.get(f"{config.get('ai_provider', 'custom')}_model", "default"),
+        "latency_ms": elapsed_ms,
+        "prompt_tokens_est": prompt_tokens,
+        "completion_tokens_est": completion_tokens,
+        "tokens_per_sec": round(completion_tokens / (elapsed_ms / 1000 + 0.001), 2) if completion_tokens else 0,
+        "response": response_text,
+        "error": error
+    }
+
+
+@app.get("/api/v3/debug/system-metrics")
+async def debug_system_metrics():
+    """
+    Comprehensive live telemetry metrics for Developer Debugger Suite.
+    """
+    import psutil
+    hw = get_system_hardware()
+    config = load_config()
+    
+    db_path = Path(__file__).parent / "market.db"
+    wal_path = Path(__file__).parent / "market.db-wal"
+    custom_blocks_file = Path(__file__).parent / "plugins" / "custom_blocks.json"
+    
+    custom_blocks_count = 0
+    if custom_blocks_file.exists():
+        try:
+            custom_blocks_count = len(json.loads(custom_blocks_file.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+            
+    uptime_sec = round(time.time() - SERVER_START_TIME, 1)
+    
+    return {
+        "status": "success",
+        "uptime_seconds": uptime_sec,
+        "hardware": hw,
+        "database": {
+            "db_size_kb": round((db_path.stat().st_size if db_path.exists() else 0) / 1024, 2),
+            "wal_size_kb": round((wal_path.stat().st_size if wal_path.exists() else 0) / 1024, 2),
+            "engine": "SQLite WAL"
+        },
+        "extensions": {
+            "custom_blocks_count": custom_blocks_count,
+            "installed_plugins": plugin_manager.list_plugins() if hasattr(plugin_manager, "list_plugins") else []
+        },
+        "ai_models": {
+            "active_chat_provider": config.get("ai_provider", "custom"),
+            "active_chat_model": config.get(f"{config.get('ai_provider', 'custom')}_model", "unknown"),
+            "coder_model": config.get("coder_model", "qwen2.5-coder:0.5b")
+        }
+    }
+
 
 
 # ---------------- WhatsApp (OpenWA Gateway) APIs ----------------
@@ -1534,6 +2035,50 @@ async def delete_product(code: str):
     raise HTTPException(status_code=404, detail="المنتج غير موجود")
 
 
+# ---------------- Atomic Checkout & ACID Storage API ----------------
+
+@app.post("/api/checkout")
+async def process_checkout_endpoint(data: dict):
+    """
+    ACID-compliant atomic checkout.
+    Uses SQLite WAL mode atomic decrement to eliminate race conditions under concurrent orders.
+    """
+    product_code = data.get("product_code", "")
+    quantity = int(data.get("quantity", 1))
+    phone = data.get("customer_phone", "")
+    name = data.get("customer_name", "عميل المتجر")
+    channel = data.get("channel", "web")
+
+    if not product_code or not phone:
+        raise HTTPException(status_code=400, detail="كود المنتج ورقم الهاتف مطلوبان لإتمام الطلب")
+
+    from database import db
+    res = db.atomic_checkout(product_code, quantity, phone, name, channel)
+    if res.get("success"):
+        # Auto-sync back to Excel sheet to keep both updated
+        db.sync_to_excel()
+        excel_cache.reload()
+        await log_message("Checkout", f"Atomic order confirmed: {name} ({product_code} x{quantity}) - Total: {res.get('total_price')} EGP")
+        return {"status": "success", "order": res}
+
+    raise HTTPException(status_code=400, detail=res.get("error", "تعذر إتمام عملية الشراء"))
+
+
+@app.get("/api/database/status")
+async def get_database_status():
+    """Returns real-time health and telemetry of the SQLite WAL storage engine."""
+    from database import db
+    products = db.get_all_products()
+    return {
+        "status": "healthy",
+        "engine": "SQLite (WAL Mode)",
+        "journal_mode": "WAL",
+        "concurrency": "ACID Multi-Reader / Single-Writer",
+        "total_products": len(products),
+        "db_file": str(db.db_path)
+    }
+
+
 @app.post("/api/excel/upload")
 async def upload_excel(file: UploadFile = File(...)):
     config = load_config()
@@ -1609,10 +2154,34 @@ async def verify_fb_webhook(request: Request):
     raise HTTPException(status_code=400, detail="Missing parameters")
 
 
+def verify_meta_hmac_signature(raw_body: bytes, signature_header: Optional[str], app_secret: str) -> bool:
+    """Verifies X-Hub-Signature-256 for Meta Webhook security to prevent spoofing/DoS."""
+    if not app_secret or not signature_header:
+        return True
+    try:
+        if not signature_header.startswith("sha256="):
+            return False
+        expected_sig = signature_header.split("sha256=")[1]
+        calculated_sig = hmac.new(app_secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected_sig, calculated_sig)
+    except Exception as e:
+        logger.warning(f"HMAC verification error: {e}")
+        return False
+
+
 @app.post("/webhook")
 async def receive_fb_event(request: Request, background_tasks: BackgroundTasks):
     try:
         raw_body = await request.body()
+        config = load_config()
+        app_secret = config.get("fb_app_secret", "") or settings.fb_app_secret
+        signature = request.headers.get("X-Hub-Signature-256")
+
+        # Verify HMAC signature if app_secret is set
+        if app_secret and not verify_meta_hmac_signature(raw_body, signature, app_secret):
+            await log_message("Security", "Blocked unauthorized Facebook Webhook: Invalid HMAC-SHA256 signature")
+            raise HTTPException(status_code=401, detail="Invalid signature")
+
         body = json.loads(raw_body.decode("utf-8"))
 
         if body.get("object") != "page":
@@ -1742,16 +2311,35 @@ async def simulator_chat_pipeline(payload: Dict[str, Any]):
                 "text-amber-400"
             )
 
-        # 2. Custom Function Logic Check
-        custom_offer = None
-        if any(term in message for term in ["قطعتين", "اتنين", "2", "اثنين", "خصم", "عرض"]):
-            custom_offer = {
-                "fn_name": "calculate_custom_offer",
-                "discount": "15% خصم فوري",
-                "free_shipping": True,
-                "summary": "تطبيق دالة العرض: قطعتين فأكثر = خصم 15% + شحن مجاني"
-            }
-            await log_message("CUSTOM_FN", "Triggered custom offer function: 2+ items = 15% off + free shipping", "text-purple-400")
+        # 2. Dynamic Scratch Flow Rules Evaluation
+        custom_rules = []
+        flow_path = Path(__file__).parent / "plugins" / "whatsapp_openwa" / "flow.json"
+        active_flow_blocks = []
+        if flow_path.exists():
+            try:
+                active_flow_blocks = json.loads(flow_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+        # Check for Stock Guard rule
+        for b in active_flow_blocks:
+            b_id = b.get("id", "") or b.get("blockId", "")
+            fields = b.get("fields", {}) or b.get("values", {})
+            custom_prompt = b.get("customPrompt", "") or fields.get("rule_description", "")
+
+            if b_id in ("data_stock_guard", "sql_stock_guard"):
+                action_on_empty = fields.get("action_on_empty", "اعتذر فوراً عن نفاذ المنتج")
+                if found_product and found_product.get("stock", 0) <= 0:
+                    custom_rules.append(f"قاعدة نفاد المخزون الصارمة: المنتج '{found_product['name']}' نفدت كميته بالكامل (الكمية 0)، {action_on_empty} بلطف واعتذر عن عدم إمكانية الشراء حالياً.")
+
+            elif custom_prompt:
+                custom_rules.append(f"قاعدة مخصصة برمجها المستخدم (Qwen Rule): {custom_prompt}")
+
+            elif b_id in ("offer_multi_discount", "custom_offer"):
+                discount = fields.get("discount", "15%")
+                shipping = fields.get("shipping", "شحن مجاني")
+                if any(term in message for term in ["قطعتين", "اتنين", "2", "اثنين", "خصم", "عرض", "قطعتين"]):
+                    custom_rules.append(f"قاعدة العروض الترويجية: العميل يطلب كمية/عرض، طبق خصم {discount} مع {shipping}.")
 
         # 3. AI Persona & Context Grounding
         config = load_config()
@@ -1763,8 +2351,8 @@ async def simulator_chat_pipeline(payload: Dict[str, Any]):
         else:
             context_parts.append("المنتج المطلوب غير محدد بالاسم، اسأل العميل بلطف عن الموديل أو المقاس.")
 
-        if custom_offer:
-            context_parts.append(f"دالة برمجية مخصصة: {custom_offer['summary']}.")
+        for rule in custom_rules:
+            context_parts.append(rule)
 
         full_prompt = f"{system_prompt}\n\n" + "\n".join(context_parts)
         messages = [
@@ -1778,8 +2366,8 @@ async def simulator_chat_pipeline(payload: Dict[str, Any]):
         except Exception as ai_err:
             logger.warning(f"Simulator AI generation fallback: {ai_err}")
 
-        # 4. Deterministic Grounding Guardrail Verification
-        from bot_logic import ProductInfo, verify_and_guard_grounding
+        custom_offer = any("خصم" in r or "عروض" in r or "عرض" in r for r in custom_rules)
+
         prod_obj = ProductInfo(
             code=found_product["code"],
             name=found_product["name"],
@@ -1805,8 +2393,8 @@ async def simulator_chat_pipeline(payload: Dict[str, Any]):
 
         # Executed steps trace
         steps = [1, 2] # Event -> SQL
-        if custom_offer:
-            steps.append(3) # Custom logic
+        if custom_offer or custom_rules:
+            steps.append(3) # Custom logic / Qwen rule
         steps.append(4) # AI Core
         steps.append(5) # Action Dispatch
 

@@ -1,0 +1,36 @@
+[
+  {
+    "id": "whatsapp_on_message",
+    "category": "triggers",
+    "name": "عند استلام رسالة واتساب",
+    "values": {
+      "session_id": "market-bot"
+    }
+  },
+  {
+    "id": "sql_product_lookup",
+    "category": "data",
+    "name": "بحث دقيق عن السعر في SQL",
+    "values": {
+      "table_name": "products",
+      "match_column": "name"
+    }
+  },
+  {
+    "id": "ai_customer_reply",
+    "category": "ai",
+    "name": "صياغة رد خدمة العملاء",
+    "values": {
+      "tone": "عامية مصرية ودودة ولائقة",
+      "include_price": true
+    }
+  },
+  {
+    "id": "whatsapp_send_action",
+    "category": "actions",
+    "name": "إرسال الرد عبر واتساب",
+    "values": {
+      "recipient_var": "{{phone_number}}"
+    }
+  }
+]

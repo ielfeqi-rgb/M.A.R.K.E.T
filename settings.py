@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     )
 
     # App
-    app_name: str = "M.A.R.K.E.T AI Dashboard"
-    app_version: str = "2.0.0"
+    app_name: str = "M.A.R.K.E.T AI Enterprise Studio"
+    app_version: str = "4.0.0"
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
