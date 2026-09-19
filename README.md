@@ -6,7 +6,7 @@
   <h1 align="center">M.A.R.K.E.T AI (v4.0.0 Enterprise)</h1>
   <p align="center">
     <strong>Modular Automated Response & Knowledge Engine for Trade</strong><br/>
-    <em>Next-Generation Visual DAG Node Studio, Multi-Model Local AI Orchestration & Real-Time Commerce Automation</em>
+    <em>Next-Generation Visual Cards Studio, Multi-Model Local AI Orchestration & Real-Time Commerce Automation</em>
   </p>
 </p>
 
@@ -21,24 +21,28 @@
 
 ---
 
-## Visual Workflow & DAG Node Studio
+## Visual Workflow & Connected Cards Studio
 
 <p align="center">
-  <img src="./docs/images/visual-node-graph.png" alt="M.A.R.K.E.T v4.0.0 Visual Node Graph Studio" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
+  <img src="./docs/images/visual-node-graph.png" alt="M.A.R.K.E.T v4.0.0 Visual Cards Studio" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
 </p>
 
-**M.A.R.K.E.T v4.0.0** is an enterprise-grade, self-hosted commerce automation platform that bridges visual flow orchestration with autonomous code synthesis. Teams can design, trace, and execute complex multi-step dialogue trees, custom business logic, and automated checkout funnels using an infinite 2D DAG canvas that compiles directly into high-performance async Python code.
+<p align="center">
+  <img src="./docs/images/connected-cards-workflow.png" alt="Multi-Card Connected Workflow Pipeline" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
+</p>
+
+**M.A.R.K.E.T v4.0.0** is an enterprise-grade, self-hosted commerce automation platform that bridges visual card-based flow orchestration with autonomous code synthesis. Teams can design, connect, and execute complex multi-step dialogue trees, custom business logic, and automated checkout funnels using an infinite 2D cards canvas that compiles directly into high-performance async Python code.
 
 ---
 
 ## Key Highlights (v4.0.0 Enterprise)
 
-- **Infinite 2D Visual DAG Canvas**: Node-based flow designer with magnetic pin snapping, live cubic bezier signal rendering, and real-time step latency profiling.
-- **Autonomous Code Synthesis (Qwen 2.5 Coder)**: Dynamic AI synthesizer that transforms custom requirements (e.g., promo codes, external Excel parsers, SQL matchers) into interactive nodes and executable Python backend modules.
+- **Infinite 2D Visual Cards Canvas**: Card-based flow designer with magnetic pin snapping, live cubic bezier signal rendering, and real-time step latency profiling.
+- **Autonomous Code Synthesis (Qwen 2.5 Coder)**: Dynamic AI synthesizer that transforms custom requirements (e.g., promo codes, external Excel parsers, SQL matchers) into interactive cards and executable Python backend modules.
 - **Dual-Model Concurrency Engine**: Independent concurrent inference streams -- Model 1 dedicated to real-time coding and schema generation, Model 2 dedicated to customer care and omni-channel messaging.
 - **ACID SQLite Write-Ahead Logging (WAL)**: High-concurrency zero-hallucination inventory storage with sub-millisecond query execution and automated Excel (products.xlsx) bidirectional synchronization.
 - **Omni-Channel Gateway Hub**: Native WhatsApp OpenWA integration with instant QR-canvas pairing, Facebook Messenger webhook dispatch, and TikTok commerce hooks.
-- **Integrated Live Inspector & Telemetry Suite**: Real-time DAG execution tracer, token profiler (tokens/sec), SQL console, and concurrency burst stress tester (P50/P95 metrics).
+- **Integrated Live Inspector & Telemetry Suite**: Real-time card execution tracer, token profiler (tokens/sec), SQL console, and concurrency burst stress tester (P50/P95 metrics).
 
 ---
 
@@ -48,7 +52,7 @@
 +----------------------------------------------------------------------------------+
 |                    M.A.R.K.E.T v4.0.0 Enterprise Core Topology                   |
 +--------------------------+-------------------------------------------------------+
-| Visual Node Studio       | React 19 + Tailwind CSS + Lucide 2D Bezier Canvas     |
+| Visual Cards Studio      | React 19 + Tailwind CSS + Lucide 2D Bezier Canvas     |
 | Asynchronous Engine      | FastAPI (ASGI / Python 3.12+) with Connection Pooling |
 | AI Code Synthesizer      | Qwen 2.5 Coder (0.5B / 1.5B / 3B) via Ollama & Llama  |
 | Customer Care AI         | Local Llama-Server / Gemini 2.5 Flash / Groq Cloud    |
@@ -95,8 +99,8 @@ chmod +x start.sh
 | Module | Description | Access |
 | :--- | :--- | :--- |
 | **Mission Control & Telemetry** | Hardware gauges, CPU/RAM utilization, active LLM model monitoring, live logs. | Sidebar -> Dashboard |
-| **Visual Node & DAG Studio** | Infinite 2D canvas, custom node architect, live pulse simulator, plugin exporter. | Sidebar -> Node Studio |
-| **DevTools & Inspector Suite** | Step-by-step DAG tracer, LLM token profiler, SQLite WAL console, stress tester. | Sidebar -> DevTools |
+| **Visual Cards & Flow Studio** | Infinite 2D canvas, custom card architect, live pulse simulator, plugin exporter. | Sidebar -> Cards Studio |
+| **DevTools & Inspector Suite** | Step-by-step card tracer, LLM token profiler, SQLite WAL console, stress tester. | Sidebar -> DevTools |
 | **Inventory & Grounding Engine** | Real-time SQL product catalog, stock tracking, instant Excel reload. | Sidebar -> Inventory |
 | **WhatsApp Gateway (OpenWA)** | Web-based QR scanner, connection status, direct message testing sandbox. | Sidebar -> WhatsApp Gateway |
 | **System & AI Settings** | AI Provider switcher (Gemini, Groq, Llama, Ollama), API keys, grounding prompts. | Sidebar -> Settings |
@@ -123,7 +127,7 @@ docker-compose logs -f
 M.A.R.K.E.T/
 |-- main.py                 # FastAPI application entrypoint & API routers
 |-- database.py             # SQLite WAL enterprise storage engine
-|-- scratch_engine.py       # DAG compiler & Python code generation engine
+|-- scratch_engine.py       # Visual card-to-code compiler & Python synthesizer
 |-- bot_logic.py            # Natural dialogue management & SQL grounding
 |-- ai_provider.py          # Multi-model LLM provider manager & fallback chain
 |-- hardware_detector.py    # Hardware profiling & model compatibility matrix
@@ -137,7 +141,7 @@ M.A.R.K.E.T/
 |   |-- whatsapp_openwa/    # WhatsApp gateway adapter
 |   |-- facebook_messenger/ # Meta Messenger adapter
 |   |-- tiktok_webhook/     # TikTok shop webhook adapter
-|   `-- custom_blocks.json  # Synthesized dynamic node schemas
+|   `-- custom_blocks.json  # Synthesized dynamic card schemas
 |-- docs/                   # Documentation & high-resolution media
 |   `-- images/             # Architecture screenshots & workflow diagrams
 |-- Dockerfile              # Multi-stage production container definition
