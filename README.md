@@ -11,6 +11,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/ielfeqi-rgb/M.A.R.K.E.T/stargazers"><img src="https://img.shields.io/github/stars/ielfeqi-rgb/M.A.R.K.E.T?style=for-the-badge&logo=github&color=blue" alt="GitHub Stars"/></a>
+  <a href="https://github.com/ielfeqi-rgb/M.A.R.K.E.T/network/members"><img src="https://img.shields.io/github/forks/ielfeqi-rgb/M.A.R.K.E.T?style=for-the-badge&logo=github&color=blue" alt="GitHub Forks"/></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12+"/></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.111%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/></a>
   <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-WAL%20Engine-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite WAL"/></a>
@@ -43,6 +45,20 @@
 - **ACID SQLite Write-Ahead Logging (WAL)**: High-concurrency zero-hallucination inventory storage with sub-millisecond query execution and automated Excel (products.xlsx) bidirectional synchronization.
 - **Omni-Channel Gateway Hub**: Native WhatsApp OpenWA integration with instant QR-canvas pairing, Facebook Messenger webhook dispatch, and TikTok commerce hooks.
 - **Integrated Live Inspector & Telemetry Suite**: Real-time card execution tracer, token profiler (tokens/sec), SQL console, and concurrency burst stress tester (P50/P95 metrics).
+
+---
+
+## Feature Comparison Matrix
+
+| Feature | M.A.R.K.E.T v4.0 | Generic Flow Builders | Cloud Bot Platforms |
+| :--- | :--- | :--- | :--- |
+| **Self-Hosted & Privacy First** | Yes (100% On-Premise) | Partial | No (Vendor Lock-in) |
+| **Visual Flow Canvas** | Infinite 2D Bezier Canvas | Node-Graph | Linear Step Trees |
+| **Autonomous Code Synthesis** | Yes (Qwen 2.5 Coder) | No | No |
+| **Local LLM Execution** | Yes (Ollama / Llama.cpp) | Partial | No (API Tokens Only) |
+| **Direct WhatsApp Gateway** | Yes (Native OpenWA / QR) | Requires External Bridge | Paid Add-on |
+| **ACID Inventory Grounding** | SQLite WAL + Excel Sync | External DB Needed | Proprietary Store |
+| **Zero Per-Message Fees** | Yes | Yes | No |
 
 ---
 
@@ -149,6 +165,16 @@ M.A.R.K.E.T/
 |-- start.sh                # Local daemon launch script
 `-- static/                 # Production compiled single-page web application
 ```
+
+---
+
+## Community and Star Support
+
+If you find M.A.R.K.E.T valuable for your business or development workflow, please star this repository on GitHub. Star support directly helps maintain continuous development and expands community contributions.
+
+To star the repository:
+1. Navigate to https://github.com/ielfeqi-rgb/M.A.R.K.E.T
+2. Click the Star button in the top right corner.
 
 ---
 

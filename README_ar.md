@@ -11,6 +11,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/ielfeqi-rgb/M.A.R.K.E.T/stargazers"><img src="https://img.shields.io/github/stars/ielfeqi-rgb/M.A.R.K.E.T?style=for-the-badge&logo=github&color=blue" alt="GitHub Stars"/></a>
+  <a href="https://github.com/ielfeqi-rgb/M.A.R.K.E.T/network/members"><img src="https://img.shields.io/github/forks/ielfeqi-rgb/M.A.R.K.E.T?style=for-the-badge&logo=github&color=blue" alt="GitHub Forks"/></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/بايثون-3.12%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12+"/></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.111%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/></a>
   <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-WAL%20Engine-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite WAL"/></a>
@@ -46,11 +48,25 @@
 
 ---
 
+## جدول مقارنة المنظومة
+
+| الميزة | منظومة M.A.R.K.E.T | أدوات بناء التدفقات العامة | منصات الشات بوت السحابية |
+| :--- | :--- | :--- | :--- |
+| **استضافة ذاتية وحفظ الخصوصية** | نعم (استضافة محلية 100%) | جزئي | لا (احتكار سحابي) |
+| **لوحة تدفقات بصرية لا نهائية** | نعم (2D Bezier Canvas) | نعم (Node Graph) | لا (شجرة خطوات خطية) |
+| **توليد الكود البرمجي ذاتيا** | نعم (Qwen 2.5 Coder) | لا | لا |
+| **تشغيل نماذج الذكاء محليا** | نعم (Ollama / Llama.cpp) | جزئي | لا (مفاتيح API مدفوعة فقط) |
+| **بوابة واتساب مدمجة ومباشرة** | نعم (OpenWA عبر QR) | تتطلب وسيط خارجي | إضافة مدفوعة باهظة |
+| **ربط وتأصيل المخزون اللحظي** | SQLite WAL + مزامنة Excel | تتطلب قاعدة خارجية | قواعد بيانات مغلقة |
+| **تكلفة صفرية على كل رسالة** | نعم | نعم | لا (رسوم شهرية متصاعدة) |
+
+---
+
 ## التشغيل والبدء السريع
 
 ### 1. المتطلبات الأساسية
 - Python 3.10+ (يوصى بإصدار 3.12)
-- Pip & Venv
+- Node.js 20+ (اختياري لتطوير الواجهة)
 - Docker & Docker Compose (اختياري للتشغيل بالحاويات)
 
 ### 2. التثبيت والتشغيل
@@ -71,6 +87,7 @@ chmod +x start.sh
 ### 3. الدخول إلى المنصة الموحدة
 - الواجهة الموحدة للمنظومة: http://localhost:8000
 - توثيق الـ API التفاعلي (Swagger): http://localhost:8000/docs
+- مخطط OpenAPI JSON: http://localhost:8000/openapi.json
 
 ---
 
@@ -87,6 +104,30 @@ chmod +x start.sh
 
 ---
 
+## النشر والتشغيل عبر Docker
+
+تشغيل الحزمة الكاملة (السيرفر الرئيسي + بوابة واتساب + قاعدة البيانات) عبر Docker Compose:
+
+```bash
+# بناء وتشغيل الحاويات في الخلفية
+docker-compose up -d --build
+
+# متابعة سجلات التشغيل الحية
+docker-compose logs -f
+```
+
+---
+
+## دعم المشروع والنجمة على GitHub
+
+إذا كنت ترى أن منظومة M.A.R.K.E.T تقدم قيمة حقيقية لأعمالك أو مشاريعك البرمجية، نرجو دعم المستودع بالنجمة (Star) على GitHub للمساهمة في استمرار التطوير ونمو المجتمع البرمجي.
+
+لطريقة وضع النجمة:
+1. التوجه للرابط: https://github.com/ielfeqi-rgb/M.A.R.K.E.T
+2. الضغط على زر Star في أعلى يمين الصفحة.
+
+---
+
 ## شكر وتقدير للمشاريع مفتوحة المصدر
 
 نبني هذه المنظومة على عمالقة البرمجيات مفتوحة المصدر:
@@ -95,14 +136,14 @@ chmod +x start.sh
 - **Uvicorn** -- خادم الـ ASGI فائق السرعة.
 - **Qwen Models** -- نماذج الذكاء الاصطناعي المتقدمة من Alibaba Cloud.
 - **llama.cpp** -- محرك تشغيل نماذج الذكاء محليا بكفاءة C/C++.
-- **OpenWA** -- بوابة أتمتة واتساب.
+- **OpenWA / WPPConnect** -- بوابة أتمتة واتساب.
 - **SQLite** -- محرك التخزين والبيانات فائق السرعة بنمط WAL.
-- **Lucide Icons** -- مكتبة الأيقونات العصرية.
-- **Tailwind CSS** -- إطار التنسيق والتصميم المرن.
+- **Lucide** -- مكتبة الأيقونات العصرية.
+- **Tailwind CSS** -- إطار عمل التنسيق وتصميم الواجهات.
 
 ---
 
 ## الترخيص
 
-هذا المشروع مرخص بموجب **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
-متاح مجانا للاستخدام الشخصي والتعليمي وغير التجاري.
+تم ترخيص هذا المشروع تحت ترخيص **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
+مجاني بالكامل للاستخدام الشخصي، التعليمي، والمشاريع غير التجارية مفتوحة المصدر.
