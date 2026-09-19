@@ -21,7 +21,7 @@
 
 ---
 
-## 🌟 Visual Workflow & DAG Node Studio
+## Visual Workflow & DAG Node Studio
 
 <p align="center">
   <img src="./docs/images/visual-node-graph.png" alt="M.A.R.K.E.T v4.0.0 Visual Node Graph Studio" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
@@ -31,42 +31,42 @@
 
 ---
 
-## ⚡ Key Highlights (v4.0.0 Enterprise)
+## Key Highlights (v4.0.0 Enterprise)
 
-- **🎨 Infinite 2D Visual DAG Canvas**: Node-based flow designer with magnetic pin snapping, live cubic bezier signal rendering, and real-time step latency profiling.
-- **🧠 Autonomous Code Synthesis (Qwen 2.5 Coder)**: Dynamic AI synthesizer that transforms custom requirements (e.g., promo codes, external Excel parsers, SQL matchers) into interactive nodes and executable Python backend modules.
-- **⚡ Dual-Model Concurrency Engine**: Independent concurrent inference streams — **Model 1** dedicated to real-time coding and schema generation, **Model 2** dedicated to customer care and omni-channel messaging.
-- **💾 ACID SQLite Write-Ahead Logging (WAL)**: High-concurrency zero-hallucination inventory storage with sub-millisecond query execution and automated Excel (`products.xlsx`) bidirectional synchronization.
-- **📱 Omni-Channel Gateway Hub**: Native WhatsApp OpenWA integration with instant QR-canvas pairing, Facebook Messenger webhook dispatch, and TikTok commerce hooks.
-- **🛠️ Integrated Live Inspector & Telemetry Suite**: Real-time DAG execution tracer, token profiler (`tokens/sec`), SQL console, and concurrency burst stress tester (`P50/P95` metrics).
-
----
-
-## 🏗️ Architecture & Component Topology
-
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                    M.A.R.K.E.T v4.0.0 Enterprise Core Topology                   │
-├──────────────────────────┬───────────────────────────────────────────────────────┤
-│ Visual Node Studio       │ React 19 + Tailwind CSS + Lucide 2D Bezier Canvas     │
-│ Asynchronous Engine      │ FastAPI (ASGI / Python 3.12+) with Connection Pooling │
-│ AI Code Synthesizer      │ Qwen 2.5 Coder (0.5B / 1.5B / 3B) via Ollama & Llama  │
-│ Customer Care AI         │ Local Llama-Server / Gemini 2.5 Flash / Groq Cloud    │
-│ Grounding & Storage      │ SQLite 3.45+ in WAL Mode + InMemory Excel Cache       │
-│ Messaging Adapters       │ WhatsApp (OpenWA), Meta Graph API, Custom Webhooks    │
-│ Telemetry & DevTools     │ In-Memory Broadcast Queue, P50/P95 Latency Profiler   │
-│ Production Infrastructure│ Docker, Docker Compose, Nginx Reverse Proxy, Systemd  │
-└──────────────────────────┴───────────────────────────────────────────────────────┘
-```
+- **Infinite 2D Visual DAG Canvas**: Node-based flow designer with magnetic pin snapping, live cubic bezier signal rendering, and real-time step latency profiling.
+- **Autonomous Code Synthesis (Qwen 2.5 Coder)**: Dynamic AI synthesizer that transforms custom requirements (e.g., promo codes, external Excel parsers, SQL matchers) into interactive nodes and executable Python backend modules.
+- **Dual-Model Concurrency Engine**: Independent concurrent inference streams -- Model 1 dedicated to real-time coding and schema generation, Model 2 dedicated to customer care and omni-channel messaging.
+- **ACID SQLite Write-Ahead Logging (WAL)**: High-concurrency zero-hallucination inventory storage with sub-millisecond query execution and automated Excel (products.xlsx) bidirectional synchronization.
+- **Omni-Channel Gateway Hub**: Native WhatsApp OpenWA integration with instant QR-canvas pairing, Facebook Messenger webhook dispatch, and TikTok commerce hooks.
+- **Integrated Live Inspector & Telemetry Suite**: Real-time DAG execution tracer, token profiler (tokens/sec), SQL console, and concurrency burst stress tester (P50/P95 metrics).
 
 ---
 
-## 🚀 Quick Start
+## Architecture & Component Topology
+
+```
++----------------------------------------------------------------------------------+
+|                    M.A.R.K.E.T v4.0.0 Enterprise Core Topology                   |
++--------------------------+-------------------------------------------------------+
+| Visual Node Studio       | React 19 + Tailwind CSS + Lucide 2D Bezier Canvas     |
+| Asynchronous Engine      | FastAPI (ASGI / Python 3.12+) with Connection Pooling |
+| AI Code Synthesizer      | Qwen 2.5 Coder (0.5B / 1.5B / 3B) via Ollama & Llama  |
+| Customer Care AI         | Local Llama-Server / Gemini 2.5 Flash / Groq Cloud    |
+| Grounding & Storage      | SQLite 3.45+ in WAL Mode + InMemory Excel Cache       |
+| Messaging Adapters       | WhatsApp (OpenWA), Meta Graph API, Custom Webhooks    |
+| Telemetry & DevTools     | In-Memory Broadcast Queue, P50/P95 Latency Profiler   |
+| Production Infrastructure| Docker, Docker Compose, Nginx Reverse Proxy, Systemd  |
++--------------------------+-------------------------------------------------------+
+```
+
+---
+
+## Quick Start
 
 ### 1. Prerequisites
-- **Python 3.10+** (Python 3.12 recommended)
-- **Node.js 20+** (Optional for frontend development)
-- **Docker & Docker Compose** (Optional for container deployment)
+- Python 3.10+ (Python 3.12 recommended)
+- Node.js 20+ (Optional for frontend development)
+- Docker & Docker Compose (Optional for container deployment)
 
 ### 2. Installation
 
@@ -84,26 +84,26 @@ chmod +x start.sh
 ```
 
 ### 3. Open the Unified Mission Control
-- **Unified Web Platform**: [http://localhost:8000](http://localhost:8000)
-- **Interactive REST API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **OpenAPI JSON Schema**: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
+- Unified Web Platform: http://localhost:8000
+- Interactive REST API Documentation (Swagger): http://localhost:8000/docs
+- OpenAPI JSON Schema: http://localhost:8000/openapi.json
 
 ---
 
-## 🛠️ Unified Platform Modules
+## Unified Platform Modules
 
 | Module | Description | Access |
 | :--- | :--- | :--- |
-| **📊 Mission Control & Telemetry** | Hardware gauges, CPU/RAM utilization, active LLM model monitoring, live logs. | `Sidebar -> لوحة القيادة` |
-| **🧩 Visual Node & DAG Studio** | Infinite 2D canvas, custom node architect, live pulse simulator, plugin exporter. | `Sidebar -> استوديو العقد` |
-| **🔬 DevTools & Inspector Suite** | Step-by-step DAG tracer, LLM token profiler, SQLite WAL console, stress tester. | `Sidebar -> منصة الفحص` |
-| **📦 Inventory & Grounding Engine** | Real-time SQL product catalog, stock tracking, instant Excel reload. | `Sidebar -> المخزن وقاعدة البيانات` |
-| **📱 WhatsApp Gateway (OpenWA)** | Web-based QR scanner, connection status, direct message testing sandbox. | `Sidebar -> بوابة واتساب` |
-| **⚙️ System & AI Settings** | AI Provider switcher (Gemini, Groq, Llama, Ollama), API keys, grounding prompts. | `Sidebar -> إعدادات النظام` |
+| **Mission Control & Telemetry** | Hardware gauges, CPU/RAM utilization, active LLM model monitoring, live logs. | Sidebar -> Dashboard |
+| **Visual Node & DAG Studio** | Infinite 2D canvas, custom node architect, live pulse simulator, plugin exporter. | Sidebar -> Node Studio |
+| **DevTools & Inspector Suite** | Step-by-step DAG tracer, LLM token profiler, SQLite WAL console, stress tester. | Sidebar -> DevTools |
+| **Inventory & Grounding Engine** | Real-time SQL product catalog, stock tracking, instant Excel reload. | Sidebar -> Inventory |
+| **WhatsApp Gateway (OpenWA)** | Web-based QR scanner, connection status, direct message testing sandbox. | Sidebar -> WhatsApp Gateway |
+| **System & AI Settings** | AI Provider switcher (Gemini, Groq, Llama, Ollama), API keys, grounding prompts. | Sidebar -> Settings |
 
 ---
 
-## 🐳 Containerized Production Deployment
+## Containerized Production Deployment
 
 Deploy the full stack (Core Server + WhatsApp Gateway + SQLite Storage) using Docker Compose:
 
@@ -117,53 +117,53 @@ docker-compose logs -f
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```
 M.A.R.K.E.T/
-├── main.py                 # FastAPI application entrypoint & API routers
-├── database.py             # SQLite WAL enterprise storage engine
-├── scratch_engine.py       # DAG compiler & Python code generation engine
-├── bot_logic.py            # Natural dialogue management & SQL grounding
-├── ai_provider.py          # Multi-model LLM provider manager & fallback chain
-├── hardware_detector.py    # Hardware profiling & model compatibility matrix
-├── llamacpp_manager.py     # Local llama-server lifecycle manager
-├── excel_helper.py         # In-memory spreadsheet indexer
-├── plugin_manager.py       # Modular plugin lifecycle & route registry
-├── config.json             # Runtime environment configuration
-├── products.xlsx           # Catalog spreadsheet dataset
-├── market_edge.db          # ACID SQLite Write-Ahead Log database
-├── plugins/                # Modular channel adapters & synthesized extensions
-│   ├── whatsapp_openwa/    # WhatsApp gateway adapter
-│   ├── facebook_messenger/ # Meta Messenger adapter
-│   ├── tiktok_webhook/     # TikTok shop webhook adapter
-│   └── custom_blocks.json  # Synthesized dynamic node schemas
-├── docs/                   # Documentation & high-resolution media
-│   └── images/             # Architecture screenshots & workflow diagrams
-├── Dockerfile              # Multi-stage production container definition
-├── docker-compose.yml      # Orchestration stack definition
-├── start.sh                # Local daemon launch script
-└── static/                 # Production compiled single-page web application
+|-- main.py                 # FastAPI application entrypoint & API routers
+|-- database.py             # SQLite WAL enterprise storage engine
+|-- scratch_engine.py       # DAG compiler & Python code generation engine
+|-- bot_logic.py            # Natural dialogue management & SQL grounding
+|-- ai_provider.py          # Multi-model LLM provider manager & fallback chain
+|-- hardware_detector.py    # Hardware profiling & model compatibility matrix
+|-- llamacpp_manager.py     # Local llama-server lifecycle manager
+|-- excel_helper.py         # In-memory spreadsheet indexer
+|-- plugin_manager.py       # Modular plugin lifecycle & route registry
+|-- config.json             # Runtime environment configuration
+|-- products.xlsx           # Catalog spreadsheet dataset
+|-- market_edge.db          # ACID SQLite Write-Ahead Log database
+|-- plugins/                # Modular channel adapters & synthesized extensions
+|   |-- whatsapp_openwa/    # WhatsApp gateway adapter
+|   |-- facebook_messenger/ # Meta Messenger adapter
+|   |-- tiktok_webhook/     # TikTok shop webhook adapter
+|   `-- custom_blocks.json  # Synthesized dynamic node schemas
+|-- docs/                   # Documentation & high-resolution media
+|   `-- images/             # Architecture screenshots & workflow diagrams
+|-- Dockerfile              # Multi-stage production container definition
+|-- docker-compose.yml      # Orchestration stack definition
+|-- start.sh                # Local daemon launch script
+`-- static/                 # Production compiled single-page web application
 ```
 
 ---
 
-## 🤝 Open Source Acknowledgments
+## Open Source Acknowledgments
 
 We gratefully acknowledge the core open-source technologies powering M.A.R.K.E.T v4.0.0:
 
-- **[FastAPI](https://fastapi.tiangolo.com/)** by Sebastián Ramírez ([@tiangolo](https://github.com/tiangolo)) — High-performance async web framework.
-- **[Uvicorn](https://www.uvicorn.org/)** by Encode OSS — Lightning-fast ASGI web server.
-- **[Qwen Models](https://github.com/QwenLM/Qwen2.5)** by Alibaba Cloud / Qwen Team — Foundation models for code synthesis and natural reasoning.
-- **[llama.cpp](https://github.com/ggerganov/llama.cpp)** by Georgi Gerganov — High-efficiency local inference in C/C++.
-- **[OpenWA / WPPConnect](https://github.com/open-wa/wa-automate-nodejs)** — Headless WhatsApp Web automation gateway.
-- **[SQLite](https://www.sqlite.org/)** by D. Richard Hipp — ACID Write-Ahead Logging database engine.
-- **[Lucide](https://lucide.dev/)** — UI iconography.
-- **[Tailwind CSS](https://tailwindcss.com/)** by Tailwind Labs — Utility-first styling framework.
+- **FastAPI** by Sebastian Ramirez (@tiangolo) -- High-performance async web framework.
+- **Uvicorn** by Encode OSS -- Lightning-fast ASGI web server.
+- **Qwen Models** by Alibaba Cloud / Qwen Team -- Foundation models for code synthesis and natural reasoning.
+- **llama.cpp** by Georgi Gerganov -- High-efficiency local inference in C/C++.
+- **OpenWA / WPPConnect** -- Headless WhatsApp Web automation gateway.
+- **SQLite** by D. Richard Hipp -- ACID Write-Ahead Logging database engine.
+- **Lucide** -- UI iconography.
+- **Tailwind CSS** by Tailwind Labs -- Utility-first styling framework.
 
 ---
 
-## 📄 License
+## License
 
 This project is released under the **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
 Free for personal, educational, and open-source non-commercial use.

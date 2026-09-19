@@ -1,4 +1,4 @@
-# 📦 Embedded LTS Binary Directory
+#  Embedded LTS Binary Directory
 
 ضع ثنائي `llama-server` المستقر هنا ليعمل المحرك مباشرة بدون تشغيل أي تنزيل أو تجميع!
 

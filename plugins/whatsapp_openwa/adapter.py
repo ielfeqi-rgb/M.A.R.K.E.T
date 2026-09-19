@@ -448,7 +448,7 @@ class WhatsAppAdapter:
             logger.info(f"[WhatsApp] Message sent to {chat_id}: {text[:60]}...")
             return {
                 "status": "success",
-                "message": "تم إرسال الرسالة بنجاح ✅",
+                "message": "تم إرسال الرسالة بنجاح ",
                 "chat_id": chat_id,
                 "response": result,
             }

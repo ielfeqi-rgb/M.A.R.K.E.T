@@ -1,9 +1,9 @@
-# 🚀 دليل النشر والتشغيل الشامل للإنتاج (IT & DevOps Production Guide)
+#  دليل النشر والتشغيل الشامل للإنتاج (IT & DevOps Production Guide)
 ## M.A.R.K.E.T AI - Enterprise Autonomous Commerce Engine
 
 ---
 
-### 📋 نظرة عامة على البنية التحتية
+###  نظرة عامة على البنية التحتية
 النظام مصمم ليعمل في بيئات الإنتاج المختلفة بسهولة تامة وبأقل استهلاك للموارد:
 * **Backend Core**: خادم FastAPI فائق السرعة يعمل على المنفذ `8000`.
 * **Frontend Studio**: واجهة Scratch للتحكم المرئي تعمل على المنفذ `3000` (أو مبنية وجاهزة داخل `static/` في الباك إند).
@@ -11,7 +11,7 @@
 
 ---
 
-## 🛠️ الخيار الأول: النشر عبر Docker & Docker-Compose (الأسهل والأكثر استقراراً)
+##  الخيار الأول: النشر عبر Docker & Docker-Compose (الأسهل والأكثر استقراراً)
 
 ### 1. المتطلبات:
 * خادم VPS (Ubuntu 22.04 / 24.04 أو Debian أو أي توزيعة Linux).
@@ -40,7 +40,7 @@ docker-compose up -d --build
 
 ---
 
-## 🖥️ الخيار الثاني: النشر المباشر على خادم Linux عبر Systemd (Native VPS)
+##  الخيار الثاني: النشر المباشر على خادم Linux عبر Systemd (Native VPS)
 
 ### 1. إعداد المسار والبيئة:
 ```bash
@@ -68,7 +68,7 @@ sudo ./deploy.sh
 
 ---
 
-## 🌐 الخيار الثالث: إعداد Reverse Proxy عبر Nginx وشهادة SSL (HTTPS)
+##  الخيار الثالث: إعداد Reverse Proxy عبر Nginx وشهادة SSL (HTTPS)
 
 ### 1. تثبيت Nginx و Certbot:
 ```bash
@@ -92,7 +92,7 @@ sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 
 ---
 
-## 🔐 إعداد متغيرات البيئة الأساسية (`.env`)
+##  إعداد متغيرات البيئة الأساسية (`.env`)
 
 | المتغير | القيمة الافتراضية / الوصف |
 | :--- | :--- |
@@ -108,7 +108,7 @@ sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 
 ---
 
-## 🩺 فحص الصحة والسلامة (Healthcheck & Diagnostics)
+##  فحص الصحة والسلامة (Healthcheck & Diagnostics)
 * فحص سلامة السيرفر: `GET http://localhost:8000/health`
 * لوحة المراقبة والتحكم: `http://localhost:8000/`
 * توثيق الـ API التفاعلي (Swagger): `http://localhost:8000/docs`

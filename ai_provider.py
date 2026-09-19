@@ -465,7 +465,7 @@ class AIProviderManager:
             try:
                 res = await AIProviderManager._chat_openai_compatible_provider(test_messages, config, "custom", 0.0)
                 if res:
-                    results["custom"] = "✅ متصل"
+                    results["custom"] = " متصل"
                     return {
                         "status": "success",
                         "response": res,
@@ -474,14 +474,14 @@ class AIProviderManager:
                         "all_results": results,
                     }
                 else:
-                    results["custom"] = "⚠️ غير متاح (لم يستجب محرك Omni Engine)"
+                    results["custom"] = " غير متاح (لم يستجب محرك Omni Engine)"
             except Exception as e:
-                results["custom"] = f"❌ خطأ: {str(e)[:60]}"
+                results["custom"] = f" خطأ: {str(e)[:60]}"
         elif selected == "ollama":
             try:
                 res = await AIProviderManager._chat_ollama(test_messages, config, 0.0)
                 if res:
-                    results["ollama"] = "✅ متصل"
+                    results["ollama"] = " متصل"
                     return {
                         "status": "success",
                         "response": res,
@@ -490,9 +490,9 @@ class AIProviderManager:
                         "all_results": results,
                     }
                 else:
-                    results["ollama"] = "⚠️ غير متاح (الخادم المحلي لم يستجب)"
+                    results["ollama"] = " غير متاح (الخادم المحلي لم يستجب)"
             except Exception as e:
-                results["ollama"] = f"❌ خطأ: {str(e)[:60]}"
+                results["ollama"] = f" خطأ: {str(e)[:60]}"
 
         # ── Step 2: Try selected cloud provider ──────────────────────────────
         if selected != "ollama":
@@ -510,7 +510,7 @@ class AIProviderManager:
                     label = selected.capitalize()
 
                 if res:
-                    results[selected] = "✅ متصل"
+                    results[selected] = " متصل"
                     return {
                         "status": "success",
                         "response": res,
@@ -519,9 +519,9 @@ class AIProviderManager:
                         "all_results": results,
                     }
                 else:
-                    results[selected] = "⚠️ لا استجابة (تحقق من الـ API Key)"
+                    results[selected] = " لا استجابة (تحقق من الـ API Key)"
             except Exception as e:
-                results[selected] = f"❌ خطأ: {str(e)[:60]}"
+                results[selected] = f" خطأ: {str(e)[:60]}"
 
         # ── Step 3: Try full chain ────────────────────────────────────────────
         res_chain = await AIProviderManager.complete_chat(test_messages, config, temperature=0.0)
@@ -536,7 +536,7 @@ class AIProviderManager:
 
         # ── All failed ────────────────────────────────────────────────────────
         err_msg = (
-            "⚠️ لا يوجد اتصال بأي موديل AI.\n"
+            " لا يوجد اتصال بأي موديل AI.\n"
             "• تأكد أن Ollama مشغّل: ollama serve\n"
             "• أو تأكد من صحة الـ API Key في إعدادات لوحة التحكم.\n"
             "• ملاحظة: تثبيت Ollama يتيح العمل بدون إنترنت نهائياً."

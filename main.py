@@ -294,7 +294,7 @@ async def restart_ngrok_endpoint():
 
 @app.post("/api/server/shutdown")
 async def shutdown_server_endpoint(background_tasks: BackgroundTasks):
-    await log_message("System", "🛑 Server shutdown requested via UI OFF button.")
+    await log_message("System", " Server shutdown requested via UI OFF button.")
     
     def kill_server_process():
         time.sleep(1.0)
@@ -343,7 +343,7 @@ async def test_telegram_alert(payload: dict):
                 f"https://api.telegram.org/bot{bot_token}/sendMessage",
                 json={
                     "chat_id": chat_id,
-                    "text": "🚨 [M.A.R.K.E.T IT Sentinel Alert]\n✅ تجربة إرسال تنبيهات الأخطاء تعمل بنجاح تام من لوحة الإعدادات!",
+                    "text": " [M.A.R.K.E.T IT Sentinel Alert]\n تجربة إرسال تنبيهات الأخطاء تعمل بنجاح تام من لوحة الإعدادات!",
                 }
             )
             if resp.status_code == 200:
@@ -642,7 +642,7 @@ async def handle_webhook(request: Request):
             compile(backend_content, "backend.py", "exec")
         except SyntaxError as syn_err:
             err_msg = f"SyntaxError on line {syn_err.lineno}: {syn_err.msg}"
-            await log_message("QwenCoder", f"[Feedback Loop] ⚠️ Generated backend.py has {err_msg}. Triggering repair via omni_engine...")
+            await log_message("QwenCoder", f"[Feedback Loop]  Generated backend.py has {err_msg}. Triggering repair via omni_engine...")
             repair_messages = [
                 {"role": "system", "content": "You are a code fixer. Fix the exact syntax error and output ONLY the complete corrected Python code inside a markdown block. No explanations."},
                 {"role": "user", "content": f"The following backend.py code has an error:\n```python\n{backend_content}\n```\nError: {err_msg}\nPlease fix the error and return the full working code."}
@@ -658,7 +658,7 @@ async def handle_webhook(request: Request):
                     try:
                         compile(fixed_code, "backend.py", "exec")
                         backend_content = fixed_code
-                        await log_message("QwenCoder", f"[Feedback Loop] ✅ omni_engine successfully auto-repaired backend.py!")
+                        await log_message("QwenCoder", f"[Feedback Loop]  omni_engine successfully auto-repaired backend.py!")
                     except Exception:
                         pass
 
@@ -686,7 +686,7 @@ async def handle_webhook(request: Request):
             "status": "success",
             "extension_id": safe_id,
             "manifest": manifest_content,
-            "message": f"تمت برمجة وتثبيت إضافة v3 الكاملة ({manifest_content.get('name')}) في plugins/{safe_id}/ وتفعيلها فورياً! 🎉",
+            "message": f"تمت برمجة وتثبيت إضافة v3 الكاملة ({manifest_content.get('name')}) في plugins/{safe_id}/ وتفعيلها فورياً! ",
             "schema": plugin_manager.get_ui_schema()
         }
     except Exception as e:
@@ -974,7 +974,7 @@ You are editing the file `{path}` for extension `{extension_id}`.
                 validation_error = f"JSONDecodeError on line {json_err.lineno}: {json_err.msg}"
 
         if validation_error:
-            await log_message("QwenCoder", f"[Feedback Loop] ⚠️ Error detected in '{path}': {validation_error}. Sending feedback to omni_engine for repair...")
+            await log_message("QwenCoder", f"[Feedback Loop]  Error detected in '{path}': {validation_error}. Sending feedback to omni_engine for repair...")
             repair_messages = [
                 {
                     "role": "system",
@@ -1003,9 +1003,9 @@ You are editing the file `{path}` for extension `{extension_id}`.
 
                 if repair_passed:
                     new_code = repaired_code
-                    await log_message("QwenCoder", f"[Feedback Loop] ✅ omni_engine successfully auto-repaired '{path}'!")
+                    await log_message("QwenCoder", f"[Feedback Loop]  omni_engine successfully auto-repaired '{path}'!")
                 else:
-                    await log_message("QwenCoder", f"[Feedback Loop] ⚠️ Auto-repair attempted, saving best version.")
+                    await log_message("QwenCoder", f"[Feedback Loop]  Auto-repair attempted, saving best version.")
 
         # Save the updated content directly to the file!
         target_file.write_text(new_code, encoding="utf-8")
@@ -1021,7 +1021,7 @@ You are editing the file `{path}` for extension `{extension_id}`.
             "extension_id": extension_id,
             "path": path,
             "new_content": new_code,
-            "message": f"تم تطبيق التعديل وحفظه تلقائياً في {path} وتحديث السيرفر بنجاح! 🎉"
+            "message": f"تم تطبيق التعديل وحفظه تلقائياً في {path} وتحديث السيرفر بنجاح! "
         }
     except Exception as e:
         logger.error(f"AI Edit error: {e}")
@@ -1159,7 +1159,7 @@ async def compile_scratch_flow(request: Request):
         backend_file.write_text(compiled_code, encoding="utf-8")
         plugin_manager.load_plugins()
         plugin_manager.mount_extension_routers(app)
-        await log_message("ScratchEngine", f"🚀 تم ترجمة وتفعيل {extension_id}/backend.py و flow.json وحفظها في المجلد بنجاح.")
+        await log_message("ScratchEngine", f" تم ترجمة وتفعيل {extension_id}/backend.py و flow.json وحفظها في المجلد بنجاح.")
 
     return {
         "status": "success",
@@ -1167,7 +1167,7 @@ async def compile_scratch_flow(request: Request):
         "backend_file": str(backend_file),
         "flow_file": str(flow_file),
         "code": compiled_code,
-        "message": f"تم ترجمة المكعبات إلى بايثون وحفظها وتفعيلها في plugins/{extension_id}/backend.py بنجاح! 🚀"
+        "message": f"تم ترجمة المكعبات إلى بايثون وحفظها وتفعيلها في plugins/{extension_id}/backend.py بنجاح! "
     }
 
 
@@ -1537,7 +1537,7 @@ Your task is to write the complete, clean, executable Python file `backend.py` f
         "extension_id": extension_id,
         "backend_file": str(plugins_dir / extension_id / "backend.py"),
         "code": generated_code,
-        "message": f"تم توليد كود بايثون وحفظه وتفعيله بنجاح في plugins/{extension_id}/backend.py عبر Qwen 2.5 Coder! 🚀"
+        "message": f"تم توليد كود بايثون وحفظه وتفعيله بنجاح في plugins/{extension_id}/backend.py عبر Qwen 2.5 Coder! "
     }
 
 
@@ -2382,10 +2382,10 @@ async def simulator_chat_pipeline(payload: Dict[str, Any]):
             guarded_reply = verify_and_guard_grounding(reply, prod_obj, message)
         else:
             if found_product:
-                offer_txt = " ولو طلبت قطعتين هتاخد خصم 15% وشحن مجاني! 🚚✨" if custom_offer else ""
-                guarded_reply = f"أهلاً بحضرتك يا فندم! 🌸 بخصوص {found_product['name']}، سعره {found_product['price']} جنيه ومتاح في المخزن.{offer_txt} تحب أحجزلك المقاس المناسب؟"
+                offer_txt = " ولو طلبت قطعتين هتاخد خصم 15% وشحن مجاني! ✨" if custom_offer else ""
+                guarded_reply = f"أهلاً بحضرتك يا فندم!  بخصوص {found_product['name']}، سعره {found_product['price']} جنيه ومتاح في المخزن.{offer_txt} تحب أحجزلك المقاس المناسب؟"
             else:
-                guarded_reply = "أهلاً بيك يا فندم في M.A.R.K.E.T! 🌸 المنتج المطلوب غير متوفر حالياً في المخزن أو برجاء تزويدنا بكود المنتج للتأكد. ✨"
+                guarded_reply = "أهلاً بيك يا فندم في M.A.R.K.E.T!  المنتج المطلوب غير متوفر حالياً في المخزن أو برجاء تزويدنا بكود المنتج للتأكد. ✨"
 
         elapsed_ms = int((time.time() - t_start) * 1000)
         await log_message("GROUNDING", f"Zero-Hallucination verification: Conf={confidence:.2f}, Latency={elapsed_ms}ms", "text-emerald-300 font-bold")

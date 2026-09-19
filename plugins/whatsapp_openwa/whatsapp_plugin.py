@@ -104,11 +104,11 @@ class Plugin(BasePlugin):
         ):
             product_name = det.get("product_name", product_code)
             confirmation_msg = (
-                f"✅ تم تأكيد طلبك بنجاح!\n\n"
-                f"📦 المنتج: {product_name}\n"
-                f"🔢 الكود: {product_code}\n\n"
+                f" تم تأكيد طلبك بنجاح!\n\n"
+                f" المنتج: {product_name}\n"
+                f" الكود: {product_code}\n\n"
                 f"هنتواصل مع حضرتك قريب لتأكيد تفاصيل الشحن. "
-                f"شكراً لثقتك فينا! 💚"
+                f"شكراً لثقتك فينا! "
             )
             logger.info(f"[WhatsApp Plugin] Purchase confirmation for {user_id}: {product_code}")
             return {

@@ -230,7 +230,7 @@ CORE_BLOCKS = [
         "fields": [
             {"key": "bot_token", "label": "توكن البوت (أو اتركه للافتراضي)", "type": "text", "default": ""},
             {"key": "chat_id", "label": "معرّف المحادثة (Chat ID)", "type": "text", "default": ""},
-            {"key": "alert_prefix", "label": "عنوان التنبيه", "type": "text", "default": "🚨 [IT Alert - M.A.R.K.E.T]"}
+            {"key": "alert_prefix", "label": "عنوان التنبيه", "type": "text", "default": " [IT Alert - M.A.R.K.E.T]"}
         ],
         "outputs": ["telegram_msg_id"]
     },
@@ -502,7 +502,7 @@ def compile_flow_to_python(flow_blocks: List[Dict[str, Any]], extension_id: str 
             t_token = fields.get("bot_token", "")
             t_chat = fields.get("chat_id", "")
             lines.append('    # Output Action: Telegram Alert')
-            lines.append('    alert_text = "🚨 تنبيه من M.A.R.K.E.T:\\n" + str(context.get("ai_reply", context.get("incoming_text", "Event captured")))')
+            lines.append('    alert_text = " تنبيه من M.A.R.K.E.T:\\n" + str(context.get("ai_reply", context.get("incoming_text", "Event captured")))')
             lines.append(f'    send_telegram_alert("{t_token}", "{t_chat}", alert_text)')
             lines.append('    execution_log.append("Dispatched alert to Telegram")')
 
@@ -616,7 +616,7 @@ def get_default_flow_for_extension(extension_id: str) -> List[Dict[str, Any]]:
                 "name": "إرسال إشعار فوري لبوت تليجرام IT",
                 "icon": "Bell",
                 "color": "emerald",
-                "values": {"bot_token": "", "chat_id": "", "alert_prefix": "🚨 [IT Alert - M.A.R.K.E.T]"}
+                "values": {"bot_token": "", "chat_id": "", "alert_prefix": " [IT Alert - M.A.R.K.E.T]"}
             }
         ]
     elif "competitor" in extension_id or "map" in extension_id:

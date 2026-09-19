@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# 📦 M.A.R.K.E.T AI - Native Binaries & Dependencies Fetcher
+#  M.A.R.K.E.T AI - Native Binaries & Dependencies Fetcher
 # ==============================================================================
 set -e
 
@@ -11,12 +11,12 @@ mkdir -p "$BIN_DIR"
 cd "$BIN_DIR"
 
 echo "=================================================================="
-echo "📦 [M.A.R.K.E.T AI] Fetching / Building Native LLM Inference Binaries..."
+echo " [M.A.R.K.E.T AI] Fetching / Building Native LLM Inference Binaries..."
 echo "=================================================================="
 
 # Check if llama-server already exists
 if [ -f "llama-server" ] && [ -x "llama-server" ]; then
-    echo "✅ Native llama-server binary is already present and executable."
+    echo " Native llama-server binary is already present and executable."
     exit 0
 fi
 
@@ -24,10 +24,10 @@ fi
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 
-echo "🖥️ Detected System: $OS ($ARCH)"
+echo " Detected System: $OS ($ARCH)"
 
 if command -v cmake &> /dev/null && command -v git &> /dev/null; then
-    echo "🔨 Building llama.cpp from source (optimized for local CPU architecture)..."
+    echo " Building llama.cpp from source (optimized for local CPU architecture)..."
     BUILD_TEMP=$(mktemp -d)
     git clone --depth 1 https://github.com/ggerganov/llama.cpp.git "$BUILD_TEMP/llama.cpp"
     mkdir -p "$BUILD_TEMP/llama.cpp/build"
@@ -42,7 +42,7 @@ if command -v cmake &> /dev/null && command -v git &> /dev/null; then
     
     rm -rf "$BUILD_TEMP"
     chmod +x "$BIN_DIR/llama-server"
-    echo "✅ Compiled and installed llama-server into $BIN_DIR successfully!"
+    echo " Compiled and installed llama-server into $BIN_DIR successfully!"
 else
-    echo "⚠️ cmake or git not found. Please install build essentials or use Docker Compose."
+    echo " cmake or git not found. Please install build essentials or use Docker Compose."
 fi

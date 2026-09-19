@@ -165,14 +165,14 @@ def verify_and_guard_grounding(raw_reply: str, product_info: Optional[ProductInf
     """
     if product_info is None:
         logger.warning(f"[GROUNDING GUARD] Product not in catalog. Enforcing strict refusal for query: '{user_message}'")
-        return "أهلاً بحضرتك يا فندم في M.A.R.K.E.T! 🌸 المنتج المطلوب غير متوفر حالياً في المخزن، أو برجاء تزويدنا بكود الموديل المطلوب للتأكد من توفره. ✨"
+        return "أهلاً بحضرتك يا فندم في M.A.R.K.E.T!  المنتج المطلوب غير متوفر حالياً في المخزن، أو برجاء تزويدنا بكود الموديل المطلوب للتأكد من توفره. ✨"
 
     if not raw_reply:
-        return f"أهلاً بحضرتك يا فندم! 🌸 {product_info.name} متوفر بسعر {product_info.price} ج.م مقاس {product_info.size}. تحت أمرك لأي استفسار! ✨"
+        return f"أهلاً بحضرتك يا فندم!  {product_info.name} متوفر بسعر {product_info.price} ج.م مقاس {product_info.size}. تحت أمرك لأي استفسار! ✨"
 
     # If product IS found, ensure stock availability
     if product_info.quantity <= 0:
-        return f"أهلاً بحضرتك يا فندم! 🌸 منتج '{product_info.name}' خلصان حالياً من المخزن وبيتجهز للدفعة القادمة قريباً جداً! ✨"
+        return f"أهلاً بحضرتك يا فندم!  منتج '{product_info.name}' خلصان حالياً من المخزن وبيتجهز للدفعة القادمة قريباً جداً! ✨"
 
     return raw_reply
 
@@ -217,10 +217,10 @@ async def generate_ai_reply(
     logger.warning("Serving rule-based grounded fallback message.")
     if product_info:
         return (
-            f"أهلاً بحضرتك يا فندم! 🌸 {product_info.name} متوفر بسعر {product_info.price} ج.م مقاس {product_info.size} ولون {product_info.color}. "
+            f"أهلاً بحضرتك يا فندم!  {product_info.name} متوفر بسعر {product_info.price} ج.م مقاس {product_info.size} ولون {product_info.color}. "
             f"تحت أمرك لتأكيد الطلب الآن! ✨"
         )
-    return "أهلاً بحضرتك يا فندم! 🌸 المنتج المطلوب غير مسجل حالياً في المخزن، برجاء تزويدنا بكود المنتج أو صورته للتأكد. ✨"
+    return "أهلاً بحضرتك يا فندم!  المنتج المطلوب غير مسجل حالياً في المخزن، برجاء تزويدنا بكود المنتج أو صورته للتأكد. ✨"
 
 
 async def generate_comment_public_reply(user_comment: str, product_info: Optional[ProductInfo]) -> str:
@@ -243,7 +243,7 @@ async def generate_comment_public_reply(user_comment: str, product_info: Optiona
     except Exception as e:
         logger.error(f"Comment AI Reply error: {e}")
 
-    return "تم الرد على حضرتك بكل التفاصيل والأسعار في رسالة خاصة بالماسنجر يا فندم! 📩✨"
+    return "تم الرد على حضرتك بكل التفاصيل والأسعار في رسالة خاصة بالماسنجر يا فندم! ✨"
 
 
 async def send_fb_message(sender_id: str, text_content: str) -> bool:

@@ -380,7 +380,7 @@ class LlamaCppManager:
                 raise RuntimeError("لم يتم العثور على ثنائي llama-server بعد التثبيت")
 
             self.install_state["status"] = "completed"
-            self.install_state["step"] = "تم تثبيت وإعداد محرك llama.cpp بنجاح! 🎉"
+            self.install_state["step"] = "تم تثبيت وإعداد محرك llama.cpp بنجاح! "
             self.install_state["percent"] = 100
             logger.info(f"[LlamaInstall SUCCESS] Binary ready at: {binary}")
 
