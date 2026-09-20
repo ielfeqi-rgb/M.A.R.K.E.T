@@ -23,25 +23,54 @@
 
 ---
 
-## Architecture Overview
+## Visual Cards Studio & Workflow Canvas
+
+<p align="center">
+  <img src="./docs/images/visual-node-graph.png" alt="M.A.R.K.E.T v4.0.2 Visual Cards Studio" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
+</p>
+
+<p align="center">
+  <img src="./docs/images/connected-cards-workflow.png" alt="Multi-Card Connected Workflow Pipeline" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
+</p>
 
 **M.A.R.K.E.T v4.0.2** is an enterprise-grade, self-hosted commerce automation platform that combines multi-channel customer communication, role-based access control (RBAC), customer relationship management (CRM) composite identity persistence, automated request queue scheduling, and local/cloud large language model orchestration into a unified, zero-dependency Python service.
 
 ---
 
-## Core Capabilities (v4.0.2 Enterprise)
+## Key Highlights (v4.0.2 Enterprise)
 
 - **Role-Based Access Control (RBAC)**: Secure multi-tier authentication engine featuring PBKDF2 password hashing (100,000 iterations), session token lifecycle management, and discrete functional permission enforcement across Executive Admin, Customer Support, IT Systems, Sales, and Operations.
 - **Customer Support Handover Center**: Centralized ticket handover management allowing human support agents to exclusively claim active customer conversations, suspend automated AI replies, deliver live WhatsApp responses, and reinstate automated routines upon ticket resolution.
 - **Composite UID & CRM Profile Engine**: Persistent customer identification format `[PLATFORM]_[PHONE]_[INITIAL_CONTACT_TIMESTAMP]` with immutable database registration and automated tier classification (VIP, Returning, Lead, New).
 - **Time & Delay Task Scheduler**: Autonomous background daemon executing long-term scheduled actions (e.g., 90-day promotional voucher dispatch, follow-up notifications) with persistent SQLite WAL state preservation across system restarts.
 - **Meta Integration Gateway**: Dual-channel Meta integration featuring Meta Graph API v19.0 for post publishing and secure Webhook endpoints for real-time comment and interaction ingestion.
+- **Infinite 2D Visual Cards Canvas**: Card-based flow designer with magnetic pin snapping, live cubic bezier signal rendering, and real-time step latency profiling.
+- **Autonomous Code Synthesis (Qwen 2.5 Coder)**: Dynamic synthesizer transforming custom business requirements into interactive visual cards and executable Python backend modules.
 - **Asynchronous Request Queue & Session Sandbox Isolation**: Memory-level per-session locking mechanism preventing conversation crosstalk and race conditions, paired with multi-worker request queues and upstream gatekeeper input validation.
 - **Zero-NPM Standalone Deployment**: Production-ready static web application bundled directly into the FastAPI backend, serving the entire interface, API, and background workers on a single unified port (8000) without Node.js runtime dependencies.
 
 ---
 
-## System Architecture Topology
+## Feature Comparison Matrix
+
+| Feature | M.A.R.K.E.T v4.0.2 | Generic Flow Builders | Cloud Bot Platforms |
+| :--- | :--- | :--- | :--- |
+| **Self-Hosted & Privacy First** | Yes (100% On-Premise) | Partial | No (Vendor Lock-in) |
+| **Role-Based Access Control (RBAC)**| Yes (Fine-Grained Matrix)| No | Paid Enterprise Tier |
+| **Customer Support Handover Pool** | Yes (Exclusive Claiming)| No | Paid Add-on |
+| **CRM Composite UID Engine** | Yes (Immutable ID Format)| No | Basic Cookie / IP |
+| **Time & Delay Task Scheduler** | Yes (SQLite WAL Persistent)| No | Paid Cloud Tasks |
+| **Meta Graph API & Webhooks** | Yes (Built-in Gateway)| External Bridge | Paid Connector |
+| **Visual Cards & Flow Canvas** | Infinite 2D Bezier Canvas | Node-Graph | Linear Step Trees |
+| **Autonomous Code Synthesis** | Yes (Qwen 2.5 Coder) | No | No |
+| **Local LLM Execution** | Yes (llama-server / Ollama) | Partial | No (Cloud API Only) |
+| **Direct WhatsApp Gateway** | Yes (Native OpenWA / QR) | External Bridge | Paid Add-on |
+| **ACID Inventory Grounding** | SQLite WAL + Excel Sync | External DB Needed | Proprietary Store |
+| **Zero Per-Message Fees** | Yes | Yes | No |
+
+---
+
+## Architecture & Component Topology
 
 ```
 +----------------------------------------------------------------------------------+
@@ -54,6 +83,7 @@
 | CRM Identity Engine      | Immutable Composite UID + Dynamic Account Tiering     |
 | Time & Delay Engine      | SQLite WAL Scheduled Trigger Daemon (Periodic Poll)   |
 | Meta & Social Gateway    | Meta Graph API v19.0 Publishing + Webhook Ingest      |
+| Visual Cards Studio      | Flow Canvas + Qwen 2.5 Coder Synthesizer              |
 | Local LLM Core           | llama-server C++ (:8081) / Ollama / Groq / Gemini     |
 | Grounding & Storage      | ACID SQLite 3.45+ (WAL Mode) + Excel Synchronizer     |
 +--------------------------+-------------------------------------------------------+
@@ -63,7 +93,7 @@
 
 ## Quick Start
 
-### 1. Requirements
+### 1. Prerequisites
 - Python 3.10+ (Python 3.12 recommended)
 - SQLite 3.35+
 - (Optional) Docker & Docker Compose for containerized environments
@@ -100,7 +130,7 @@ python3 main.py
 
 ---
 
-## Unified Modules
+## Unified Platform Modules
 
 | Module | Functional Scope | Route |
 | :--- | :--- | :--- |
@@ -112,6 +142,20 @@ python3 main.py
 | **Inventory Engine** | SQLite WAL stock catalog, bidirectional Excel synchronization | `/` -> Inventory |
 | **System Settings** | Meta Graph API/Webhook setup, time scheduler, LLM providers | `/` -> Settings |
 | **Operational Guides** | Standard operating procedures and interactive support assistant | `/` -> Operational Guide |
+
+---
+
+## Containerized Production Deployment
+
+Deploy the full stack using Docker Compose:
+
+```bash
+# Start all services in daemon mode
+docker-compose up -d --build
+
+# View real-time container logs
+docker-compose logs -f
+```
 
 ---
 
@@ -137,6 +181,8 @@ M.A.R.K.E.T/
 |-- products.xlsx           # Catalog spreadsheet dataset
 |-- market_edge.db          # ACID SQLite Write-Ahead Log database
 |-- plugins/                # Modular channel adapters & synthesized extensions
+|-- docs/                   # Documentation & high-resolution media
+|   `-- images/             # Architecture screenshots & workflow diagrams
 |-- static/                 # Pre-compiled standalone single-page application assets
 |-- Dockerfile              # Production container definition
 `-- docker-compose.yml      # Multi-service stack orchestration definition
@@ -144,7 +190,32 @@ M.A.R.K.E.T/
 
 ---
 
+## Community and Star Support
+
+If you find M.A.R.K.E.T valuable for your business or development workflow, please star this repository on GitHub. Star support directly helps maintain continuous development and expands community contributions.
+
+To star the repository:
+1. Navigate to https://github.com/ielfeqi-rgb/M.A.R.K.E.T
+2. Click the Star button in the top right corner.
+
+---
+
+## Open Source Acknowledgments
+
+We gratefully acknowledge the core open-source technologies powering M.A.R.K.E.T v4.0.2:
+
+- **FastAPI** by Sebastian Ramirez (@tiangolo) -- High-performance async web framework.
+- **Uvicorn** by Encode OSS -- Lightning-fast ASGI web server.
+- **Qwen Models** by Alibaba Cloud / Qwen Team -- Foundation models for code synthesis and natural reasoning.
+- **llama.cpp** by Georgi Gerganov -- High-efficiency local inference in C/C++.
+- **OpenWA / WPPConnect** -- Headless WhatsApp Web automation gateway.
+- **SQLite** by D. Richard Hipp -- ACID Write-Ahead Logging database engine.
+- **Lucide** -- UI iconography.
+- **Tailwind CSS** by Tailwind Labs -- Utility-first styling framework.
+
+---
+
 ## License
 
 This project is released under the **PolyForm NonCommercial License 1.0.0 (CC BY-NC-SA 4.0)**.  
-Free for personal, educational, and open-source non-commercial deployment.
+Free for personal, educational, and open-source non-commercial use.
