@@ -36,6 +36,7 @@ from ai_provider import AIProviderManager
 from hardware_detector import get_system_hardware
 from llamacpp_manager import llama_manager
 from plugin_manager import plugin_manager
+from database import db
 
 # WhatsApp adapter (initialized lazily on startup)
 _whatsapp_adapter = None
@@ -107,6 +108,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     hw = get_system_hardware()
     logger.info("Hardware detected: %s RAM, %d cores (%s)", f"{hw['ram_total_gb']}GB", hw['cpu_cores'], hw['tier_label'])
 
+    # Initialize Smart AI Request Queue & Processor
+    from request_queue import ai_queue
+    ai_queue.set_processor(execute_grounded_ai_turn)
+    await ai_queue.start()
+    logger.info("Smart AI Request Queue & Virtual Workspace Concurrency Scheduler initialized.")
+
+    # Initialize Time & Delay Scheduler Engine
+    from time_scheduler import scheduler_engine
+    scheduler_engine.start()
+    logger.info("Time & Delay Scheduler Engine initialized (Background Daemon Active).")
+
     # Initialize WhatsApp adapter if enabled
     global _whatsapp_adapter
     try:
@@ -128,6 +140,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("Shutting down OmniContext AI...")
     _shutdown_event.set()
+
+    # Stop Time Scheduler Engine
+    try:
+        scheduler_engine.stop()
+        logger.info("Time Scheduler Engine stopped cleanly.")
+    except Exception as e:
+        logger.warning(f"Error stopping Time Scheduler Engine: {e}")
+
+    # Stop Smart AI Request Queue
+    try:
+        from request_queue import ai_queue
+        await ai_queue.stop()
+        logger.info("Smart AI Request Queue stopped cleanly.")
+    except Exception as e:
+        logger.warning(f"Error stopping AI request queue: {e}")
 
     # Shutdown WhatsApp adapter
     if _whatsapp_adapter:
@@ -2271,18 +2298,17 @@ async def process_comment_background(comment_id: str, post_id: str, comment_text
         await log_message("Error", f"Comment background processing error: {e}")
 
 
-@app.post("/api/v3/simulator/chat")
-async def simulator_chat_pipeline(payload: Dict[str, Any]):
+async def execute_grounded_ai_turn(req: StandardAIRequest) -> Dict[str, Any]:
     """
-    Production-grade Simulator Pipeline with real fuzzy matching,
-    deterministic grounding verification, and live SSE event emission.
+    Core AI Grounding Engine executed inside the Smart Request Queue with
+    Per-Session Serialization and Zero Cross-Contamination.
     """
     t_start = time.time()
     try:
-        message = payload.get("message", "").strip()
-        channel = payload.get("channel", "whatsapp")
+        message = req.message.strip()
+        channel = req.channel or "simulator"
 
-        await log_message("EVENT", f"Incoming {channel.upper()} simulation message: '{message}'", "text-sky-400")
+        await log_message("QUEUE", f"Processing Turn [Session: {req.session_id}, WS: {req.workspace_id}]: '{message}'", "text-sky-400")
 
         # 1. Real Fuzzy Search against Excel catalog
         fuzzy_result = excel_cache.search_product_fuzzy(message, min_threshold=0.50)
@@ -2405,6 +2431,8 @@ async def simulator_chat_pipeline(payload: Dict[str, Any]):
             "custom_offer": custom_offer,
             "executed_steps": steps,
             "channel": channel,
+            "session_id": req.session_id,
+            "workspace_id": req.workspace_id,
             "confidence": confidence,
             "latency_ms": elapsed_ms
         }
@@ -2412,15 +2440,848 @@ async def simulator_chat_pipeline(payload: Dict[str, Any]):
         logger.error(f"Simulator chat error: {e}")
         return {
             "status": "error",
-            "reply": f"عذراً، حدث خطأ في المحاكي: {str(e)}",
+            "reply": f"عذراً، حدث خطأ في معالجة الرد: {str(e)}",
             "executed_steps": [1]
         }
 
 
-# ---------------- Static Files Dashboard Mounting ----------------
+# ================================================================
+# M.A.R.K.E.T AI v4.0.2 - Smart AI Request Queue & Enqueue Endpoints
+# ================================================================
+
+from request_queue import ai_queue
+from request_validator import StandardAIRequest
+
+
+@app.post("/api/v3/simulator/chat")
+async def simulator_chat_pipeline(payload: Dict[str, Any]):
+    """
+    Simulator Chat Endpoint routed safely through the Smart AI Request Queue.
+    """
+    from request_queue import ai_queue
+    req_dict = {
+        "message": payload.get("message", ""),
+        "channel": payload.get("channel", "simulator"),
+        "session_id": payload.get("session_id", "sim_session"),
+        "workspace_id": payload.get("workspace_id", "ws_default"),
+        "employee_id": payload.get("employee_id"),
+        "employee_name": payload.get("employee_name")
+    }
+    return await ai_queue.enqueue(req_dict)
+
+
+@app.post("/api/chat/enqueue")
+async def api_chat_enqueue(payload: Dict[str, Any]):
+    """
+    Standardized Multi-Tenant Virtual Workspace Ingestion Endpoint.
+    Validates, filters invalid/spam requests, serializes per session, and executes via worker pool.
+    """
+    from request_queue import ai_queue
+    return await ai_queue.enqueue(payload)
+
+
+@app.get("/api/queue/stats")
+async def api_get_queue_stats():
+    """
+    Live Queue Telemetry: returns worker counts, pending items, total processed,
+    rejected/filtered queries, and average latency.
+    """
+    from request_queue import ai_queue
+    return {
+        "status": "success",
+        "queue": ai_queue.get_stats()
+    }
+
+
+# ================================================================
+# M.A.R.K.E.T AI v4.0.1 - Authentication & RBAC Endpoints
+# ================================================================
+
+from auth import ALL_PERMISSIONS, ROLE_PERMISSIONS
+from port_manager import find_free_port, get_available_ports_list, is_port_in_use
+
+
+def _get_token_from_header(authorization: Optional[str] = Header(None), x_session_token: Optional[str] = Header(None)) -> Optional[str]:
+    """Extract token from Bearer header or X-Session-Token."""
+    if x_session_token:
+        return x_session_token
+    if authorization and authorization.startswith("Bearer "):
+        return authorization.split(" ", 1)[1].strip()
+    return None
+
+
+@app.post("/api/auth/login")
+async def api_auth_login(request: Request):
+    """Authenticate user with username & password, returns user object and session token."""
+    try:
+        body = await request.json()
+        username = body.get("username", "").strip()
+        password = body.get("password", "")
+
+        if not username or not password:
+            raise HTTPException(status_code=400, detail="يرجى إدخال اسم المستخدم وكلمة المرور")
+
+        result = db.authenticate_user(username, password)
+        if not result:
+            raise HTTPException(status_code=401, detail="اسم المستخدم أو كلمة المرور غير صحيحة")
+
+        await log_message("AUTH", f"User logged in: {result['user']['full_name']} ({result['user']['role']})", "text-emerald-400")
+        return {
+            "status": "success",
+            "token": result["token"],
+            "user": result["user"]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Auth login error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/auth/logout")
+async def api_auth_logout(
+    authorization: Optional[str] = Header(None),
+    x_session_token: Optional[str] = Header(None)
+):
+    """Log out and invalidate session token."""
+    token = _get_token_from_header(authorization, x_session_token)
+    if token:
+        db.delete_session(token)
+    return {"status": "success", "message": "تم تسجيل الخروج بنجاح"}
+
+
+@app.get("/api/auth/me")
+async def api_auth_me(
+    authorization: Optional[str] = Header(None),
+    x_session_token: Optional[str] = Header(None)
+):
+    """Return currently authenticated user data and permissions."""
+    token = _get_token_from_header(authorization, x_session_token)
+    if not token:
+        raise HTTPException(status_code=401, detail="غير مسجل الدخول")
+
+    user = db.get_user_by_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="انتهت صلاحية الجلسة أو الحساب غير موجود")
+
+    return {
+        "status": "success",
+        "user": user
+    }
+
+
+@app.get("/api/auth/permissions")
+async def api_auth_permissions():
+    """List all available system permissions and standard role mappings."""
+    return {
+        "status": "success",
+        "all_permissions": ALL_PERMISSIONS,
+        "role_presets": ROLE_PERMISSIONS
+    }
+
+
+# ================================================================
+# M.A.R.K.E.T AI v4.0.1 - User Management Endpoints (Admin / IT)
+# ================================================================
+
+@app.get("/api/users")
+async def api_get_users():
+    """List all registered users."""
+    try:
+        users = db.list_users()
+        return {"status": "success", "users": users}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/users")
+async def api_create_user(request: Request):
+    """Create a new user account."""
+    try:
+        body = await request.json()
+        username = body.get("username", "").strip()
+        password = body.get("password", "")
+        full_name = body.get("full_name", "").strip()
+        role = body.get("role", "sales")
+        permissions = body.get("permissions", None)
+
+        if not username or not password or not full_name:
+            raise HTTPException(status_code=400, detail="جميع الحقول (اسم المستخدم، كلمة المرور، الاسم الكامل) مطلوبة")
+
+        res = db.create_user(username, password, full_name, role, permissions)
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل إنشاء الحساب"))
+
+        await log_message("USERS", f"Created new user account: {full_name} [{role}]", "text-sky-400")
+        return {"status": "success", "user": res}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/users/{user_id}")
+async def api_update_user(user_id: int, request: Request):
+    """Update user information, password, role, or permissions."""
+    try:
+        body = await request.json()
+        full_name = body.get("full_name")
+        role = body.get("role")
+        permissions = body.get("permissions")
+        password = body.get("password")
+        is_active = body.get("is_active")
+
+        res = db.update_user(user_id, full_name, role, permissions, password, is_active)
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل تحديث الحساب"))
+
+        return {"status": "success", "message": "تم تحديث الحساب بنجاح"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/users/{user_id}")
+async def api_delete_user(user_id: int):
+    """Delete a user account."""
+    try:
+        res = db.delete_user(user_id)
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل حذف الحساب"))
+        return {"status": "success", "message": "تم حذف الحساب بنجاح"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================================================================
+# M.A.R.K.E.T AI v4.0.1 - Dynamic Port Reservation Endpoints
+# ================================================================
+
+@app.get("/api/ports/available")
+async def api_get_available_ports():
+    """Scan and return free available TCP ports for isolated employee sessions."""
+    try:
+        active_reservations = db.list_port_reservations(active_only=True)
+        reserved_ports = [r["port"] for r in active_reservations]
+
+        start_p = getattr(settings, "port_range_start", 8100)
+        end_p = getattr(settings, "port_range_end", 8200)
+
+        suggested_port = find_free_port(start_p, end_p, reserved_ports)
+        available_list = get_available_ports_list(start_p, end_p, limit=8, reserved_ports=reserved_ports)
+
+        return {
+            "status": "success",
+            "suggested_port": suggested_port,
+            "available_ports": available_list,
+            "port_range": f"{start_p}-{end_p}",
+            "active_reserved_count": len(reserved_ports)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/ports/active")
+async def api_get_active_ports():
+    """List all active port reservations."""
+    try:
+        reservations = db.list_port_reservations(active_only=True)
+        return {"status": "success", "reservations": reservations}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ports/reserve")
+async def api_reserve_port(request: Request):
+    """Reserve a specific port for an employee session."""
+    try:
+        body = await request.json()
+        port = body.get("port")
+        user_id = body.get("user_id", 1)
+        employee_name = body.get("employee_name", "موظف")
+        purpose = body.get("purpose", "جلسة عمل خاصة")
+
+        if not port:
+            # Auto-pick free port
+            active_res = db.list_port_reservations(active_only=True)
+            reserved_ports = [r["port"] for r in active_res]
+            start_p = getattr(settings, "port_range_start", 8100)
+            end_p = getattr(settings, "port_range_end", 8200)
+            port = find_free_port(start_p, end_p, reserved_ports)
+
+        if not port:
+            raise HTTPException(status_code=400, detail="لا توجد منافذ شبكية فارغة متاحة حالياً في النطاق المحدد")
+
+        # Verify port is physically free
+        if is_port_in_use(int(port)):
+            raise HTTPException(status_code=400, detail=f"المنفذ {port} مشغول بالفعل على الخادم")
+
+        res = db.reserve_port(int(port), int(user_id), str(employee_name), str(purpose))
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل حجز المنفذ"))
+
+        await log_message("PORTS", f"Port {port} reserved for {employee_name} ({purpose})", "text-purple-400 font-bold")
+        return {"status": "success", "reservation": res}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/ports/release/{port_or_id}")
+async def api_release_port(port_or_id: int):
+    """Release a reserved port."""
+    try:
+        res = db.release_port(port_or_id)
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل تحرير المنفذ"))
+        await log_message("PORTS", f"Port/Reservation {port_or_id} released successfully.", "text-slate-400")
+        return {"status": "success", "message": "تم تحرير المنفذ بنجاح"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================================================================
+# M.A.R.K.E.T AI v4.0.2 - Global CS Handover Pool Endpoints
+# ================================================================
+
+@app.get("/api/cs/pool")
+async def api_get_cs_pool(status: Optional[str] = None):
+    """List pending and claimed handover conversations in the CS Pool."""
+    try:
+        items = db.list_cs_pool(status_filter=status)
+        return {
+            "status": "success",
+            "count": len(items),
+            "pending_count": len([i for i in items if i.get("status") == "pending"]),
+            "items": items
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/cs/pool/handover")
+async def api_cs_pool_handover(request: Request):
+    """Push a conversation from AI or webhook into the Global CS Handover Pool."""
+    try:
+        body = await request.json()
+        session_id = body.get("session_id", "").strip()
+        customer_phone = body.get("customer_phone", session_id).strip()
+        customer_name = body.get("customer_name", "عميل").strip()
+        channel = body.get("channel", "whatsapp")
+        reason = body.get("reason", "طلب التحدث مع خدمة العملاء")
+        last_message = body.get("last_message", "")
+
+        if not session_id:
+            raise HTTPException(status_code=400, detail="session_id is required")
+
+        res = db.add_to_cs_pool(session_id, customer_phone, customer_name, channel, reason, last_message)
+        await log_message("CS_POOL", f"Conversation handed over to CS Pool: {customer_name} ({reason})", "text-amber-400 font-bold")
+        return {"status": "success", "handover": res}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/cs/pool/claim/{handover_id}")
+async def api_cs_pool_claim(handover_id: int, request: Request):
+    """Claim a handover conversation exclusively by a CS agent."""
+    try:
+        body = await request.json()
+        agent_id = body.get("agent_id", 1)
+        agent_name = body.get("agent_name", "سارة - خدمة العملاء")
+
+        res = db.claim_cs_conversation(handover_id, int(agent_id), str(agent_name))
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل استلام المحادثة"))
+
+        await log_message("CS_POOL", f"Agent {agent_name} claimed handover #{handover_id}", "text-emerald-400 font-bold")
+        return {"status": "success", "message": res.get("message")}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/cs/pool/resolve/{handover_id}")
+async def api_cs_pool_resolve(handover_id: int):
+    """Mark conversation resolved and hand it back to automated AI."""
+    try:
+        res = db.resolve_cs_conversation(handover_id)
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل إنهاء المحادثة"))
+
+        await log_message("CS_POOL", f"Handover #{handover_id} resolved and returned back to AI.", "text-sky-400")
+        return {"status": "success", "message": res.get("message")}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/cs/pool/reply")
+async def api_cs_pool_reply(request: Request):
+    """CS Agent sends direct human reply to customer."""
+    try:
+        body = await request.json()
+        handover_id = body.get("handover_id")
+        session_id = body.get("session_id", "")
+        customer_phone = body.get("customer_phone", "")
+        message = body.get("message", "").strip()
+        agent_name = body.get("agent_name", "خدمة العملاء")
+
+        if not message:
+            raise HTTPException(status_code=400, detail="نص الرد مطلوب")
+
+        # If WhatsApp adapter is active and connected, send message
+        global _whatsapp_adapter
+        sent_wa = False
+        if _whatsapp_adapter and customer_phone:
+            try:
+                clean_phone = customer_phone.replace("+", "").replace(" ", "").replace("-", "")
+                chat_id = f"{clean_phone}@c.us" if "@" not in clean_phone else clean_phone
+                await _whatsapp_adapter.send_text(chat_id, message)
+                sent_wa = True
+            except Exception as wa_err:
+                logger.warning(f"Failed to send direct WhatsApp reply: {wa_err}")
+
+        # Log conversation in SQLite
+        db.log_conversation(session_id or customer_phone, "whatsapp_agent", f"[Human Agent {agent_name}]: {message}", message, 0, "human")
+        await log_message("CS_AGENT", f"{agent_name} replied to {customer_phone}: '{message[:50]}...'", "text-emerald-300")
+
+        return {
+            "status": "success",
+            "sent_via_whatsapp": sent_wa,
+            "message": "تم إرسال رد خدمة العملاء بنجاح"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================================================================
+# M.A.R.K.E.T AI v4.0.2 - Meta / Facebook Gateway & Webhook Hub
+# ================================================================
+
+@app.get("/api/webhooks/facebook")
+async def api_facebook_webhook_verify(
+    request: Request
+):
+    """
+    Facebook Webhook Verification Challenge.
+    Meta requests GET with: hub.mode, hub.verify_token, hub.challenge
+    """
+    from meta_integration import meta_hub
+    params = request.query_params
+    hub_mode = params.get("hub.mode")
+    hub_verify_token = params.get("hub.verify_token")
+    hub_challenge = params.get("hub.challenge")
+
+    config = load_config()
+    expected_token = config.get("facebook_verify_token", "market_meta_secret_token_2026")
+
+    is_valid, challenge = meta_hub.verify_webhook_handshake(
+        hub_mode, hub_verify_token, hub_challenge, expected_token
+    )
+    if is_valid and challenge:
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(content=challenge, status_code=200)
+
+    raise HTTPException(status_code=403, detail="Verification token mismatch")
+
+
+@app.post("/api/webhooks/facebook")
+async def api_facebook_webhook_receive(request: Request):
+    """
+    Facebook Webhook Event Ingestion (Real-time Comments & Messages).
+    """
+    from meta_integration import meta_hub
+    try:
+        body = await request.json()
+        parsed = meta_hub.parse_webhook_event(body)
+        
+        events = parsed.get("events", [])
+        for ev in events:
+            ev_type = ev.get("type")
+            if ev_type == "feed_comment":
+                sender_name = ev.get("sender_name", "عميل فيسبوك")
+                comment_text = ev.get("text", "")
+                await log_message("META_WEBHOOK", f"Facebook Comment by {sender_name}: '{comment_text[:40]}'", "text-sky-300 font-bold")
+            elif ev_type == "messenger_message":
+                sender_id = ev.get("sender_id", "")
+                msg_text = ev.get("text", "")
+                await log_message("META_WEBHOOK", f"Messenger Message from {sender_id}: '{msg_text[:40]}'", "text-purple-300 font-bold")
+
+        return {"status": "EVENT_RECEIVED", "processed_events": len(events)}
+    except Exception as e:
+        logger.error(f"Error handling Facebook webhook: {e}")
+        return {"status": "ERROR", "detail": str(e)}
+
+
+@app.post("/api/integrations/facebook/test_post")
+async def api_facebook_test_post(request: Request):
+    """Publish a live or simulated Facebook Post via Graph API."""
+    from meta_integration import meta_hub
+    try:
+        body = await request.json()
+        config = load_config()
+        page_id = body.get("page_id") or config.get("facebook_page_id", "1098273645")
+        access_token = body.get("access_token") or config.get("facebook_page_access_token", "mock_token")
+        message = body.get("message", " عرض خاص وحصري من M.A.R.K.E.T AI - كود خصم 15% على جميع التيشيرتات!").strip()
+        link = body.get("link")
+        image_url = body.get("image_url")
+
+        res = meta_hub.publish_page_post(page_id, access_token, message, link, image_url)
+        await log_message("META_GRAPH", f"Page Post dispatched: '{message[:50]}...'", "text-emerald-400 font-bold")
+        return {"status": "success", "result": res}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/integrations/facebook/test_webhook")
+async def api_facebook_test_webhook_simulator(request: Request):
+    """Simulates an incoming Facebook comment or message for IT diagnostics."""
+    from meta_integration import meta_hub
+    try:
+        body = await request.json()
+        simulated_type = body.get("type", "comment") # comment or messenger
+        text = body.get("text", "السعر كام لو سمحت وعايز مقاس L ؟")
+        sender_name = body.get("sender_name", "أحمد محمود (عميل تجريبي)")
+
+        if simulated_type == "comment":
+            mock_payload = {
+                "object": "page",
+                "entry": [{
+                    "changes": [{
+                        "value": {
+                            "item": "comment",
+                            "verb": "add",
+                            "comment_id": f"comm_{int(time.time())}",
+                            "post_id": "post_100200",
+                            "from": {"id": "usr_9988", "name": sender_name},
+                            "message": text,
+                            "created_time": int(time.time())
+                        }
+                    }]
+                }]
+            }
+        else:
+            mock_payload = {
+                "object": "page",
+                "entry": [{
+                    "messaging": [{
+                        "sender": {"id": "psid_778899"},
+                        "recipient": {"id": "page_123"},
+                        "timestamp": int(time.time() * 1000),
+                        "message": {"text": text}
+                    }]
+                }]
+            }
+
+        parsed = meta_hub.parse_webhook_event(mock_payload)
+        await log_message("META_TEST", f"Webhook simulation triggered: [{simulated_type}] '{text}'", "text-amber-300 font-bold")
+        return {"status": "success", "parsed": parsed}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================================================================
+# M.A.R.K.E.T AI v4.0.2 - Time & Delay Scheduler Endpoints
+# ================================================================
+
+@app.get("/api/scheduler/triggers")
+async def api_get_scheduler_triggers(status: Optional[str] = None, limit: int = 50):
+    """List scheduled triggers for IT/admin monitoring."""
+    try:
+        items = db.list_scheduled_triggers(status_filter=status, limit=limit)
+        return {
+            "status": "success",
+            "count": len(items),
+            "pending_count": len([i for i in items if i.get("status") == "pending"]),
+            "items": items
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/scheduler/schedule")
+async def api_create_scheduled_trigger(request: Request):
+    """Create a new delayed or scheduled task."""
+    from time_scheduler import scheduler_engine
+    try:
+        body = await request.json()
+        session_id = body.get("session_id", "").strip()
+        customer_phone = body.get("customer_phone", "").strip()
+        customer_name = body.get("customer_name", "عميل").strip()
+        trigger_type = body.get("trigger_type", "promo_after_delay")
+        payload = body.get("payload", {})
+        days = int(body.get("days", 0))
+        hours = int(body.get("hours", 0))
+        minutes = int(body.get("minutes", 0))
+        seconds = int(body.get("seconds", 0))
+        target_iso = body.get("target_iso")
+        created_by = body.get("created_by", "it_admin")
+
+        res = scheduler_engine.schedule_task(
+            session_id=session_id or f"sched_{customer_phone}",
+            customer_phone=customer_phone,
+            customer_name=customer_name,
+            trigger_type=trigger_type,
+            payload=payload,
+            days=days,
+            hours=hours,
+            minutes=minutes,
+            seconds=seconds,
+            target_iso=target_iso,
+            created_by=created_by
+        )
+
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل جدولة المهمة"))
+
+        await log_message("SCHEDULER", f"Task #{res.get('id')} scheduled for {res.get('scheduled_for')} ({trigger_type})", "text-purple-400 font-bold")
+        return {"status": "success", "task": res}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/scheduler/cancel/{trigger_id}")
+async def api_cancel_scheduled_trigger(trigger_id: int):
+    """Cancel a pending scheduled task."""
+    try:
+        res = db.cancel_scheduled_trigger(trigger_id)
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل إلغاء المهمة"))
+        await log_message("SCHEDULER", f"Scheduled task #{trigger_id} cancelled by user.", "text-rose-400")
+        return {"status": "success", "message": res.get("message")}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/scheduler/trigger_now/{trigger_id}")
+async def api_trigger_now_test(trigger_id: int):
+    """Instantly execute a scheduled task for IT testing."""
+    from time_scheduler import scheduler_engine
+    try:
+        trig = db.get_scheduled_trigger_by_id(trigger_id)
+        if not trig:
+            raise HTTPException(status_code=404, detail="المهمة غير موجودة")
+
+        res = await scheduler_engine.execute_trigger(trig)
+        await log_message("SCHEDULER", f"Task #{trigger_id} manually executed immediately.", "text-emerald-400 font-bold")
+        return {"status": "success", "result": res}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================================================================
+# M.A.R.K.E.T AI v4.0.2 - Customer Composite UID & Classification APIs
+# ================================================================
+
+@app.get("/api/customers")
+async def api_list_customers(
+    classification: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 100
+):
+    """List all registered customers with composite UIDs and classifications."""
+    try:
+        customers = db.list_customers(classification_filter=classification, search=search, limit=limit)
+        return {
+            "status": "success",
+            "count": len(customers),
+            "customers": customers
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/customers/{customer_uid}")
+async def api_get_customer_profile(customer_uid: str):
+    """Get full profile and historical interactions under this composite UID."""
+    try:
+        history = db.get_customer_full_history(customer_uid)
+        if not history.get("success"):
+            raise HTTPException(status_code=404, detail="العميل غير موجود")
+        return {"status": "success", **history}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/customers/{customer_uid}/classify")
+async def api_classify_customer(customer_uid: str, request: Request):
+    """Update customer classification category (new, returning, vip, lead, cs_ticket)."""
+    try:
+        body = await request.json()
+        classification = body.get("classification", "new").strip().lower()
+        notes = body.get("notes", "").strip()
+
+        valid_classes = ["new", "returning", "vip", "lead", "cs_ticket", "inactive"]
+        if classification not in valid_classes:
+            raise HTTPException(status_code=400, detail=f"تصنيف غير صالح. الخيارات المتاحة: {', '.join(valid_classes)}")
+
+        res = db.update_customer_classification(customer_uid, classification, notes)
+        if not res.get("success"):
+            raise HTTPException(status_code=400, detail=res.get("error", "فشل تحديث التصنيف"))
+
+        await log_message("CUSTOMER_CRM", f"Customer {customer_uid} reclassified to [{classification}]", "text-amber-300 font-bold")
+        return {"status": "success", "customer_uid": customer_uid, "classification": classification}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================================================================
+# M.A.R.K.E.T AI v4.0.2 - How-To & AI System Copilot API
+# ================================================================
+
+@app.post("/api/howto/ask")
+async def api_howto_ask(request: Request):
+    """
+    AI-powered interactive assistant answering system usage, operations, and workflow questions.
+    """
+    try:
+        body = await request.json()
+        question = body.get("question", "").strip()
+        user_role = body.get("role", "general")
+
+        if not question:
+            raise HTTPException(status_code=400, detail="السؤال مطلوب")
+
+        q_lower = question.lower()
+        
+        # Knowledge Base Grounding & Instant Fast-Match
+        if any(k in q_lower for k in ["جدول", "وقت", "تأخير", "3 أشهر", "90 يوم", "schedule", "delay", "مؤجل"]):
+            answer = (
+                "### ⏱️ إجراءات جدولة الرسائل الترويجية والمهام المؤجلة:\n\n"
+                "1. توجه إلى **صفحة الإعدادات العامة (Settings)** من القائمة الرئيسية.\n"
+                "2. اختر تبويب **محرك الجدولة الزمنية والمهام المؤجلة (Time Scheduler)**.\n"
+                "3. في نموذج الجدولة، أدخل **رقم هاتف العميل**، و **فترة التأخير بالأيام** (أدخل `90` يوماً لتنفيذ المهمة بعد ثلاثة أشهر).\n"
+                "4. أدخل **الرمز الترويجي** (مثال: `SUMMER-90D`) ونص الرسالة التسويقية المعتمدة.\n"
+                "5. اضغط **اعتماد وجدولة المهمة في قاعدة البيانات**.\n\n"
+                "💡 **ملاحظة تشغيلية:** يعمل خادم غير متزامن في الخلفية (Background Daemon) بصفة دورية لفحص المهام المستحقة وتنفيذها آلياً في موعدها المحدد دون الحاجة لأي تدخل يدوي."
+            )
+            suggested_view = "settings"
+            steps = ["افتح الإعدادات العامة", "اختر تبويب محرك الجدولة", "حدد فترة التأخير (90 يوماً) ورقم العميل", "اضغط اعتماد المهمة"]
+
+        elif any(k in q_lower for k in ["فيسبوك", "ميتا", "facebook", "meta", "webhook", "graph", "بوست", "تعليق"]):
+            answer = (
+                "### 🌐 إجراءات تكامل بوابة فيسبوك وميتا (Webhooks & Graph API):\n\n"
+                "1. ادخل إلى **الإعدادات العامة** واختر تبويب **بوابة تكامل فيسبوك وميتا**.\n"
+                "2. أدخل معرف الصفحة المؤسسية **(Facebook Page ID)** ورمز الوصول الدائم **(Page Access Token)**.\n"
+                "3. انسخ رابط الاستقبال المباشر (Webhook URL) وأدرجه في لوحة تحكم مطوري فيسبوك **(Meta Developer Portal)** مع رمز التحقق **Verify Token**.\n"
+                "4. **لاختبار النشر المباشر:** اكتب نص المنشور في حقل الاختبار واضغط **نشر تجريبي للتحقق من الاتصال**.\n"
+                "5. **لاختبار استقبال التفاعلات:** اضغط زر **محاكاة حدث وارد** لفحص سرعة استجابة المنظومة للتعليقات."
+            )
+            suggested_view = "settings"
+            steps = ["افتح تبويب تكامل فيسبوك", "أدخل معرف الصفحة ورمز الوصول", "انسخ رابط Webhook المباشر", "أجرِ اختبار النشر للتحقق"]
+
+        elif any(k in q_lower for k in ["خدمة العملاء", "استلام", "تحويل", "بوول", "cs", "pool", "تذكرة", "بشري"]):
+            answer = (
+                "### 🎧 إجراءات إدارة تحويلات خدمة العملاء (Support Center):\n\n"
+                "1. افتح صفحة **مركز خدمة العملاء والدعم المباشر** من القائمة الرئيسية.\n"
+                "2. ستظهر قائمة بالمحادثات المحولة من المعالجة الآلية بحالة **في الانتظار (Pending)**.\n"
+                "3. اختر المحادثة المطلوبة واضغط **تخصيص المحادثة للمتابعة** (يمنع هذا الإجراء تضارب العمل بين ممثلي الخدمة).\n"
+                "4. اكتب الرد الرسمي المعتمد في صندوق المراسلة أو استخدم **نماذج الردود المعتمدة**.\n"
+                "5. بعد استكمال تقديم المساعدة، اضغط **إنهاء التحويل واستئناف الرد الآلي** لإعادة تفعيل المعالجة التلقائية."
+            )
+            suggested_view = "cs_pool"
+            steps = ["افتح مركز خدمة العملاء", "اختر المحادثة المعلقة", "اضغط تخصيص المحادثة", "أرسل الرد المباشر", "اضغط إنهاء التحويل واستئناف الرد الآلي"]
+
+        elif any(k in q_lower for k in ["uid", "معرف", "تصنيف", "vip", "هوية", "مركب", "عميل"]):
+            answer = (
+                "### 🆔 معمارية المعرف المؤسسي الموحد (Composite UID) ومعايير التصنيف:\n\n"
+                "- **التركيبة القياسية المعتمدة:** تتكون من `[رمز_المنصة]_[رقم_الهاتف]_[تاريخ_وساعة_أول_تواصل]` مثل: `WA_01011223399_20260920_152117`.\n"
+                "- **ثبات وتكامل البيانات:** يتم حفظ تاريخ أول اتصال في قاعدة البيانات، وتظل كافة الرسائل والطلبات مسجلة تحت هذا المعرف الموحد والدائم.\n"
+                "- **تعديل تصنيف الحساب:** في واجهة خدمة العملاء، يمكن لممثل الخدمة تغيير تصنيف العميل وفق المعايير المؤسسية:\n"
+                "  - **عميل جديد (New)**\n"
+                "  - **عميل متكرر (Returning)**\n"
+                "  - **عميل مميز (VIP)**\n"
+                "  - **فرصة تعاقد (Lead)**"
+            )
+            suggested_view = "cs_pool"
+            steps = ["المعرف يوثق تاريخ أول اتصال", "رمز الـ UID ثابت لجميع تعاملات العميل", "إمكانية تعديل التصنيف المؤسسي بنقرة واحدة"]
+
+        elif any(k in q_lower for k in ["عزل", "جلسة", "session", "تزامن", "workers", "طابور"]):
+            answer = (
+                "### 🛡️ آلية العزل البرمجي للمحادثات وإدارة الجلسات (Software Isolation & Queue):\n\n"
+                "1. **قفل الجلسة (Per-Session Lock):** كل محادثة لعميل تعمل في مسار معزول برمجياً لمنع أي تداخل بين الرسائل والردود.\n"
+                "2. **طابور المعالجة غير المتزامن:** تنظيم كافة الطلبات عبر مسارات معالجة متزامنة (Workers) آمنة وخفيفة.\n"
+                "3. **استقلالية مساحات العمل:** كل موظف يعمل على محادثاته المخصصة بصلاحيات RBAC معزولة كلياً عبر الخادم الموحد دون الحاجة لفتح منافذ إضافية أو استهلاك موارد الشبكة."
+            )
+            suggested_view = "dashboard"
+            steps = ["العزل يتم برمجياً عبر أقفال الجلسات", "المعالجة غير المتزامنة تضمن السرعة والأمان", "كل موظف يعمل ضمن نطاق صلاحياته المعتمدة"]
+
+        elif any(k in q_lower for k in ["استوديو", "كارد", "نود", "qwen", "studio", "توليد"]):
+            answer = (
+                "### 🧩 إجراءات استخدام استوديو المسارات وتكامل الأنظمة (Flow Studio):\n\n"
+                "1. افتح **استوديو المسارات وتكامل الأنظمة (Studio)** من القائمة الجانبية.\n"
+                "2. حدد المواصفات الفنية للوحدة أو العقدة البرمجية المراد إضافتها لمسار العمليات.\n"
+                "3. اضغط **توليد وبناء الوحدة البرمجية**، ليقوم المحرك البرمجي ببناء الواجهة والمنطق الخلفي ودمجها مباشرة في المنظومة."
+            )
+            suggested_view = "studio"
+            steps = ["افتح استوديو المسارات", "حدد المتطلبات الفنية للوحدة", "اضغط توليد وبناء الوحدة", "دمج الوحدة في مسار العمليات"]
+
+        else:
+            # Fallback general answer
+            answer = (
+                f"### 💡 إرشادات المساعد الفني حول: '{question}'\n\n"
+                "توفر منظومة **M.A.R.K.E.T Enterprise Platform** بيئة تشغيلية متكاملة تشمل:\n"
+                "1. **مركز إدارة تحويلات خدمة العملاء (CS Support):** للمتابعة المباشرة وإدارة الحوارات المعلقة.\n"
+                "2. **محرك الجدولة الزمنية (Time Scheduler):** لجدولة الرسائل المؤجلة والمهام المستقبلية.\n"
+                "3. **بوابة تكامل فيسبوك وميتا (Meta Hub):** لإدارة المنشورات واستقبال الأحداث عبر Webhook.\n"
+                "4. **إدارة المستخدمين والصلاحيات (RBAC):** لتوزيع الأدوار والصلاحيات الوظيفية بدقة وأمان.\n\n"
+                "يمكنكم اختيار أحد الأدلة الإرشادية من القائمة أو كتابة استفساركم الإجرائي بالتفصيل."
+            )
+            suggested_view = "dashboard"
+            steps = ["راجع الأدلة التشغيلية المعتمدة للحصول على المزيد من التفاصيل"]
+
+        return {
+            "status": "success",
+            "question": question,
+            "answer": answer,
+            "suggested_view": suggested_view,
+            "steps": steps
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------- Standalone Static Files Dashboard (Zero NPM Dependency) ----------------
+
+if os.path.exists("static/assets"):
+    app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
 
 if os.path.exists("static"):
-    app.mount("/", StaticFiles(directory="static", html=True), name="static")
+    @app.get("/")
+    async def serve_index():
+        return FileResponse("static/index.html")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa_fallback(full_path: str):
+        # Allow API and specific files to bypass
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi"):
+            raise HTTPException(status_code=404, detail="Endpoint not found")
+        file_path = os.path.join("static", full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse("static/index.html")
 
 
 def main():

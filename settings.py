@@ -15,10 +15,20 @@ class Settings(BaseSettings):
 
     # App
     app_name: str = "M.A.R.K.E.T AI Enterprise Studio"
-    app_version: str = "4.0.0"
+    app_version: str = "4.0.2"
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8000
+
+    # Port Reservation for Employee Sessions
+    port_range_start: int = 8100
+    port_range_end: int = 8200
+
+    # Smart AI Request Queue & Virtual Workspace
+    queue_max_workers: int = 4
+    queue_max_size: int = 5000
+    request_max_length: int = 1500
+    request_rate_limit_per_session: int = 30  # max requests per minute per session
 
     # CORS
     cors_origins: Union[List[str], str] = Field(default_factory=lambda: ["*"])
