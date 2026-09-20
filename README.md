@@ -3,10 +3,10 @@
 </p>
 
 <p align="center">
-  <h1 align="center">M.A.R.K.E.T Enterprise Platform (v4.0.2)</h1>
+  <h1 align="center">M.A.R.K.E.T Enterprise Platform (v4.0.5)</h1>
   <p align="center">
     <strong>Modular Automated Response & Knowledge Engine for Trade</strong><br/>
-    <em>Enterprise Multi-Role Orchestration, Asynchronous Session Queue, CRM Composite UID Engine, Meta Graph API & Standalone Local LLM Stack</em>
+    <em>Google Maps Competitor Intelligence, AI Strategic Gap Synthesis, RBAC Multi-Role Orchestration, Asynchronous Session Queue & Standalone Local LLM Stack</em>
   </p>
 </p>
 
@@ -18,7 +18,7 @@
   <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-WAL%20Engine-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite WAL"/></a>
   <a href="https://github.com/QwenLM/Qwen2.5"><img src="https://img.shields.io/badge/AI%20Synthesizer-Qwen%202.5%20Coder-6366F1?style=for-the-badge&logo=openai&logoColor=white" alt="Qwen 2.5 Coder"/></a>
   <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Production%20Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/Release-v4.0.2%20Enterprise-10B981?style=for-the-badge" alt="Release v4.0.2"/></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/Release-v4.0.5%20Enterprise-10B981?style=for-the-badge" alt="Release v4.0.5"/></a>
 </p>
 
 ---
@@ -26,19 +26,23 @@
 ## Visual Cards Studio & Workflow Canvas
 
 <p align="center">
-  <img src="./docs/images/visual-node-graph.png" alt="M.A.R.K.E.T v4.0.2 Visual Cards Studio" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
+  <img src="./docs/images/visual-node-graph.png" alt="M.A.R.K.E.T v4.0.5 Visual Cards Studio" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
 </p>
 
 <p align="center">
   <img src="./docs/images/connected-cards-workflow.png" alt="Multi-Card Connected Workflow Pipeline" width="900" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4);"/>
 </p>
 
-**M.A.R.K.E.T v4.0.2** is an enterprise-grade, self-hosted commerce automation platform that combines multi-channel customer communication, role-based access control (RBAC), customer relationship management (CRM) composite identity persistence, automated request queue scheduling, and local/cloud large language model orchestration into a unified, zero-dependency Python service.
+**M.A.R.K.E.T v4.0.5** is an enterprise-grade, self-hosted commerce automation platform that combines multi-channel customer communication, Google Maps competitor intelligence, role-based access control (RBAC), customer relationship management (CRM) composite identity persistence, automated request queue scheduling, and local/cloud large language model orchestration into a unified, zero-dependency Python service.
 
 ---
 
-## Key Highlights (v4.0.2 Enterprise)
+## Key Highlights (v4.0.5 Enterprise)
 
+- **Google Maps Competitor Intelligence**: Autonomous Puppeteer Stealth background scraper extracting business profiles, star ratings, review counts, auto-scrolled customer reviews, and local image persistence.
+- **AI Strategic Opportunity & Gap Synthesis**: Unifies market intelligence with our store catalog to generate actionable vulnerability matrices, counter-marketing ad hooks, pricing arbitrage, and inventory gap opportunities.
+- **Delta Growth Indicators**: Automated month-over-month trend tracking comparing ratings and review velocity changes across scheduled scraping cycles.
+- **Reader-Mode Content Sanitizer**: Anti-hallucination web reader stripping noise and HTML boilerplate to feed pure factual context to local Qwen or Cloud LLMs.
 - **Role-Based Access Control (RBAC)**: Secure multi-tier authentication engine featuring PBKDF2 password hashing (100,000 iterations), session token lifecycle management, and discrete functional permission enforcement across Executive Admin, Customer Support, IT Systems, Sales, and Operations.
 - **Customer Support Handover Center**: Centralized ticket handover management allowing human support agents to exclusively claim active customer conversations, suspend automated AI replies, deliver live WhatsApp responses, and reinstate automated routines upon ticket resolution.
 - **Composite UID & CRM Profile Engine**: Persistent customer identification format `[PLATFORM]_[PHONE]_[INITIAL_CONTACT_TIMESTAMP]` with immutable database registration and automated tier classification (VIP, Returning, Lead, New).
@@ -53,9 +57,11 @@
 
 ## Feature Comparison Matrix
 
-| Feature | M.A.R.K.E.T v4.0.2 | Generic Flow Builders | Cloud Bot Platforms |
+| Feature | M.A.R.K.E.T v4.0.5 | Generic Flow Builders | Cloud Bot Platforms |
 | :--- | :--- | :--- | :--- |
 | **Self-Hosted & Privacy First** | Yes (100% On-Premise) | Partial | No (Vendor Lock-in) |
+| **Google Maps Competitor Intelligence** | Yes (Puppeteer Stealth + Delta) | No | Paid Add-on |
+| **AI Strategic Gap Analysis** | Yes (Grounded Synthesis Engine)| No | Paid Consultation |
 | **Role-Based Access Control (RBAC)**| Yes (Fine-Grained Matrix)| No | Paid Enterprise Tier |
 | **Customer Support Handover Pool** | Yes (Exclusive Claiming)| No | Paid Add-on |
 | **CRM Composite UID Engine** | Yes (Immutable ID Format)| No | Basic Cookie / IP |

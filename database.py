@@ -179,6 +179,67 @@ class DatabaseManager:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
 
+                CREATE TABLE IF NOT EXISTS competitors (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    maps_url TEXT NOT NULL,
+                    category TEXT DEFAULT '',
+                    address TEXT DEFAULT '',
+                    phone TEXT DEFAULT '',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS competitor_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    competitor_id INTEGER NOT NULL,
+                    rating REAL DEFAULT 0.0,
+                    total_reviews_count INTEGER DEFAULT 0,
+                    rating_delta REAL DEFAULT 0.0,
+                    reviews_delta INTEGER DEFAULT 0,
+                    sentiment_summary_json TEXT DEFAULT '{}',
+                    raw_data_json TEXT DEFAULT '{}',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS competitor_reviews (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    competitor_id INTEGER NOT NULL,
+                    snapshot_id INTEGER NOT NULL,
+                    author TEXT DEFAULT 'Anonymous',
+                    rating INTEGER DEFAULT 0,
+                    text TEXT DEFAULT '',
+                    date_text TEXT DEFAULT '',
+                    sentiment TEXT DEFAULT 'neutral',
+                    keywords_json TEXT DEFAULT '[]',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE,
+                    FOREIGN KEY (snapshot_id) REFERENCES competitor_snapshots(id) ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS competitor_photos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    competitor_id INTEGER NOT NULL,
+                    snapshot_id INTEGER NOT NULL,
+                    remote_url TEXT DEFAULT '',
+                    local_path TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (competitor_id) REFERENCES competitors(id) ON DELETE CASCADE,
+                    FOREIGN KEY (snapshot_id) REFERENCES competitor_snapshots(id) ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS competitor_strategies (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    target_competitors_json TEXT DEFAULT '[]',
+                    strategy_markdown TEXT NOT NULL,
+                    raw_prompt TEXT DEFAULT '',
+                    model_used TEXT DEFAULT 'local',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
                 CREATE INDEX IF NOT EXISTS idx_orders_phone ON orders(customer_phone);
                 CREATE INDEX IF NOT EXISTS idx_logs_session ON conversation_logs(session_id);
@@ -193,6 +254,11 @@ class DatabaseManager:
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_cust_platform_ident ON customer_profiles(platform, identifier);
                 CREATE INDEX IF NOT EXISTS idx_cust_classification ON customer_profiles(classification);
                 CREATE INDEX IF NOT EXISTS idx_cust_first_contact ON customer_profiles(first_contact_at);
+                CREATE INDEX IF NOT EXISTS idx_comp_active ON competitors(is_active);
+                CREATE INDEX IF NOT EXISTS idx_comp_snap_comp ON competitor_snapshots(competitor_id);
+                CREATE INDEX IF NOT EXISTS idx_comp_rev_comp ON competitor_reviews(competitor_id);
+                CREATE INDEX IF NOT EXISTS idx_comp_rev_sent ON competitor_reviews(sentiment);
+                CREATE INDEX IF NOT EXISTS idx_comp_strat_date ON competitor_strategies(created_at);
             """)
 
             # Safe column migrations for existing databases
@@ -1149,6 +1215,233 @@ class DatabaseManager:
                 "tickets": tickets
             }
 
+    # ================================================================
+    # M.A.R.K.E.T AI v4.0.5 - Competitor Intelligence Methods
+    # ================================================================
+
+    def add_competitor(self, name: str, maps_url: str, category: str = "", address: str = "", phone: str = "") -> Dict[str, Any]:
+        """Registers a new competitor to track."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO competitors (name, maps_url, category, address, phone, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (name.strip(), maps_url.strip(), category.strip(), address.strip(), phone.strip()))
+            conn.commit()
+            return {"success": True, "id": cursor.lastrowid, "name": name}
+
+    def list_competitors(self, active_only: bool = True) -> List[Dict[str, Any]]:
+        """Lists tracked competitors along with their latest snapshot metrics."""
+        with self.get_connection() as conn:
+            query = """
+                SELECT c.*, 
+                       s.rating AS latest_rating,
+                       s.total_reviews_count AS latest_reviews_count,
+                       s.rating_delta,
+                       s.reviews_delta,
+                       s.sentiment_summary_json,
+                       s.created_at AS last_scraped_at
+                FROM competitors c
+                LEFT JOIN competitor_snapshots s ON s.id = (
+                    SELECT id FROM competitor_snapshots 
+                    WHERE competitor_id = c.id 
+                    ORDER BY created_at DESC LIMIT 1
+                )
+            """
+            if active_only:
+                query += " WHERE c.is_active = 1"
+            query += " ORDER BY c.id DESC"
+
+            cursor = conn.execute(query)
+            competitors = []
+            import json
+            for r in cursor.fetchall():
+                d = dict(r)
+                try:
+                    d["sentiment_summary"] = json.loads(d.get("sentiment_summary_json") or "{}")
+                except Exception:
+                    d["sentiment_summary"] = {}
+                competitors.append(d)
+            return competitors
+
+    def get_competitor(self, competitor_id: int) -> Optional[Dict[str, Any]]:
+        """Retrieves competitor details, snapshots, recent reviews, and photos."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("SELECT * FROM competitors WHERE id = ?", (competitor_id,))
+            row = cursor.fetchone()
+            if not row:
+                return None
+            comp = dict(row)
+
+            # Latest snapshot
+            snap_cursor = conn.execute("""
+                SELECT * FROM competitor_snapshots 
+                WHERE competitor_id = ? 
+                ORDER BY created_at DESC LIMIT 1
+            """, (competitor_id,))
+            snap_row = snap_cursor.fetchone()
+            import json
+            comp["latest_snapshot"] = dict(snap_row) if snap_row else None
+            if comp["latest_snapshot"]:
+                try:
+                    comp["latest_snapshot"]["sentiment_summary"] = json.loads(comp["latest_snapshot"].get("sentiment_summary_json") or "{}")
+                except Exception:
+                    comp["latest_snapshot"]["sentiment_summary"] = {}
+
+            # Recent reviews (up to 30)
+            rev_cursor = conn.execute("""
+                SELECT * FROM competitor_reviews 
+                WHERE competitor_id = ? 
+                ORDER BY id DESC LIMIT 30
+            """, (competitor_id,))
+            reviews = []
+            for r in rev_cursor.fetchall():
+                rd = dict(r)
+                try:
+                    rd["keywords"] = json.loads(rd.get("keywords_json") or "[]")
+                except Exception:
+                    rd["keywords"] = []
+                reviews.append(rd)
+            comp["reviews"] = reviews
+
+            # Photos
+            photo_cursor = conn.execute("""
+                SELECT * FROM competitor_photos 
+                WHERE competitor_id = ? 
+                ORDER BY id DESC LIMIT 15
+            """, (competitor_id,))
+            comp["photos"] = [dict(p) for p in photo_cursor.fetchall()]
+
+            # Historical snapshots for trend chart
+            history_cursor = conn.execute("""
+                SELECT id, rating, total_reviews_count, rating_delta, reviews_delta, created_at
+                FROM competitor_snapshots
+                WHERE competitor_id = ?
+                ORDER BY created_at ASC
+            """, (competitor_id,))
+            comp["history"] = [dict(h) for h in history_cursor.fetchall()]
+
+            return comp
+
+    def delete_competitor(self, competitor_id: int) -> Dict[str, Any]:
+        """Deletes a competitor and associated snapshots/reviews."""
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM competitors WHERE id = ?", (competitor_id,))
+            conn.commit()
+            return {"success": True, "id": competitor_id}
+
+    def save_competitor_snapshot(self, competitor_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Saves a scraped snapshot, calculates Delta Trends from previous snapshot,
+        and saves parsed reviews and local photos.
+        """
+        import json
+        with self.get_connection() as conn:
+            # 1. Fetch previous snapshot for Delta calculation
+            prev_cursor = conn.execute("""
+                SELECT rating, total_reviews_count FROM competitor_snapshots
+                WHERE competitor_id = ?
+                ORDER BY created_at DESC LIMIT 1
+            """, (competitor_id,))
+            prev_row = prev_cursor.fetchone()
+
+            current_rating = float(data.get("rating", 0.0))
+            current_reviews_count = int(data.get("total_reviews_count", 0))
+
+            rating_delta = 0.0
+            reviews_delta = 0
+
+            if prev_row:
+                prev_rating = float(prev_row["rating"] or 0.0)
+                prev_reviews = int(prev_row["total_reviews_count"] or 0)
+                rating_delta = round(current_rating - prev_rating, 2)
+                reviews_delta = current_reviews_count - prev_reviews
+
+            # 2. Update competitor name/address/category if scraped
+            if data.get("competitor_name"):
+                conn.execute("""
+                    UPDATE competitors 
+                    SET name = COALESCE(NULLIF(?, ''), name),
+                        address = COALESCE(NULLIF(?, ''), address),
+                        category = COALESCE(NULLIF(?, ''), category),
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (data.get("competitor_name"), data.get("address", ""), data.get("category", ""), competitor_id))
+
+            # 3. Insert Snapshot
+            sentiment_json = json.dumps(data.get("sentiment_summary", {}), ensure_ascii=False)
+            raw_json = json.dumps(data, ensure_ascii=False)
+
+            snap_cursor = conn.execute("""
+                INSERT INTO competitor_snapshots (
+                    competitor_id, rating, total_reviews_count, rating_delta, reviews_delta,
+                    sentiment_summary_json, raw_data_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (competitor_id, current_rating, current_reviews_count, rating_delta, reviews_delta, sentiment_json, raw_json))
+            snapshot_id = snap_cursor.lastrowid
+
+            # 4. Insert Reviews
+            for rev in data.get("reviews", []):
+                kw_json = json.dumps(rev.get("keywords", []), ensure_ascii=False)
+                conn.execute("""
+                    INSERT INTO competitor_reviews (
+                        competitor_id, snapshot_id, author, rating, text, date_text, sentiment, keywords_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    competitor_id,
+                    snapshot_id,
+                    rev.get("author", "Anonymous"),
+                    int(rev.get("rating", 0)),
+                    rev.get("text", ""),
+                    rev.get("date_text", ""),
+                    rev.get("sentiment", "neutral"),
+                    kw_json
+                ))
+
+            # 5. Insert Photos
+            for p in data.get("local_photos", []):
+                conn.execute("""
+                    INSERT INTO competitor_photos (competitor_id, snapshot_id, remote_url, local_path)
+                    VALUES (?, ?, ?, ?)
+                """, (competitor_id, snapshot_id, "", p))
+
+            conn.commit()
+            return {
+                "success": True,
+                "snapshot_id": snapshot_id,
+                "rating_delta": rating_delta,
+                "reviews_delta": reviews_delta
+            }
+
+    def save_strategic_analysis(self, title: str, target_competitors: List[int], strategy_markdown: str, raw_prompt: str = "", model_used: str = "local") -> Dict[str, Any]:
+        """Saves an AI-generated competitive strategy report."""
+        import json
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO competitor_strategies (title, target_competitors_json, strategy_markdown, raw_prompt, model_used, created_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (title, json.dumps(target_competitors), strategy_markdown, raw_prompt, model_used))
+            conn.commit()
+            return {"success": True, "strategy_id": cursor.lastrowid}
+
+    def list_strategic_analyses(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """Lists saved strategic intelligence analysis reports."""
+        with self.get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT * FROM competitor_strategies ORDER BY created_at DESC LIMIT ?
+            """, (limit,))
+            items = []
+            import json
+            for r in cursor.fetchall():
+                d = dict(r)
+                try:
+                    d["target_competitors"] = json.loads(d.get("target_competitors_json") or "[]")
+                except Exception:
+                    d["target_competitors"] = []
+                items.append(d)
+            return items
+
+
 # Global singleton
 db = DatabaseManager()
+
 

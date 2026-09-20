@@ -1,0 +1,7 @@
+{
+  "cron_expression": "0 0 1 * *",
+  "backend_api_url": "http://localhost:8000/api/competitors/save-snapshot",
+  "max_reviews_per_scrape": 40,
+  "download_photos": true,
+  "competitors": []
+}
